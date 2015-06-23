@@ -6,6 +6,7 @@ package btcd
 
 import (
 	"fmt"
+	"time"
 
 	"encoding/hex"
 
@@ -491,6 +492,8 @@ func (p *peer) pushDirBlockMsg(sha *wire.ShaHash, doneChan, waitChan chan struct
 	// batch of inventory.
 	if p.continueHash != nil && p.continueHash.IsEqual(sha) {
 		util.Trace("continueHash: " + spew.Sdump(sha))
+		time.Sleep(2*time.Second)
+		
 		//
 		// Note: Rather than the latest block height, we should pass
 		// the last block height of this batch of wire.MaxBlockLocatorsPerMsg
