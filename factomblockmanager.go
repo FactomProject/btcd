@@ -8,7 +8,6 @@ import (
 	"container/list"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/FactomProject/btcd/wire"
 
@@ -75,8 +74,6 @@ func (b *blockManager) handleDirInvMsg(imsg *dirInvMsg) {
 		//if b.headersFirstMode {
 		//continue
 		//}
-		
-		time.Sleep(10 * time.Millisecond)
 
 		// Request the inventory if we don't already have it.
 		haveInv, err := b.haveInventory(iv)
