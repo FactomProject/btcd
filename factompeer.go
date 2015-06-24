@@ -50,7 +50,7 @@ func (p *peer) handleDirBlockMsg(msg *wire.MsgDirBlock, buf []byte) {
 	iv := wire.NewInvVect(wire.InvTypeFactomDirBlock, hash)
 	p.AddKnownInventory(iv)
 
-	p.pushGetNonDirDataMsg(msg.DBlk)
+	//p.pushGetNonDirDataMsg(msg.DBlk)
 
 	inMsgQueue <- msg
 
@@ -492,7 +492,7 @@ func (p *peer) pushDirBlockMsg(sha *wire.ShaHash, doneChan, waitChan chan struct
 	// batch of inventory.
 	if p.continueHash != nil && p.continueHash.IsEqual(sha) {
 		util.Trace("continueHash: " + spew.Sdump(sha))
-		time.Sleep(300*time.Second)
+		time.Sleep(5*time.Second)
 		
 		//
 		// Note: Rather than the latest block height, we should pass

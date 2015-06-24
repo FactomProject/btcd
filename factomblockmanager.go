@@ -75,6 +75,7 @@ func (b *blockManager) handleDirInvMsg(imsg *dirInvMsg) {
 		//continue
 		//}
 
+		
 		// Request the inventory if we don't already have it.
 		haveInv, err := b.haveInventory(iv)
 		if err != nil {
