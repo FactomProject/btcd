@@ -50,7 +50,7 @@ func (p *peer) handleDirBlockMsg(msg *wire.MsgDirBlock, buf []byte) {
 	iv := wire.NewInvVect(wire.InvTypeFactomDirBlock, hash)
 	p.AddKnownInventory(iv)
 
-	//p.pushGetNonDirDataMsg(msg.DBlk)
+	p.pushGetNonDirDataMsg(msg.DBlk)
 
 	inMsgQueue <- msg
 
@@ -491,27 +491,7 @@ func (p *peer) pushDirBlockMsg(sha *wire.ShaHash, doneChan, waitChan chan struct
 	// to trigger it to issue another getblocks message for the next
 	// batch of inventory.
 	if p.continueHash != nil && p.continueHash.IsEqual(sha) {
-		util.Trace("continueHash: " + spew.Sdump(sha))
-		time.Sleep(5*time.Second)
-		
-		//
-		// Note: Rather than the latest block height, we should pass
-		// the last block height of this batch of wire.MaxBlockLocatorsPerMsg
-		// to signal this is the end of the batch and
-		// to trigger a client to send a new GetDirBlocks message
-		//
-		//hash, _, _ := db.FetchBlockHeightCache()
-		//if err == nil {
-			util.Trace()
-			invMsg := wire.NewMsgDirInvSizeHint(1)
-			iv := wire.NewInvVect(wire.InvTypeFactomDirBlock, sha)	//hash)
-			invMsg.AddInvVect(iv)
-			p.QueueMessage(invMsg, doneChan)
-			p.continueHash = nil
-		//} else if doneChan != nil {
-		if doneChan != nil {
-			doneChan <- struct{}{}
-		}
+		go waitAndHandleLastDirBlock(p, sha, doneChan)
 	}
 	return nil
 }
@@ -770,4 +750,28 @@ func (p *peer) pushFactoidMsg(commonhash *common.Hash, doneChan, waitChan chan s
 	p.QueueMessage(msg, doneChan)
 
 	return nil
+}
+
+func waitAndHandleLastDirBlock(p *peer, sha *wire.ShaHash, doneChan chan struct{}){
+		util.Trace("continueHash: " + spew.Sdump(sha))
+		time.Sleep(5*time.Second)
+		
+		//
+		// Note: Rather than the latest block height, we should pass
+		// the last block height of this batch of wire.MaxBlockLocatorsPerMsg
+		// to signal this is the end of the batch and
+		// to trigger a client to send a new GetDirBlocks message
+		//
+		//hash, _, _ := db.FetchBlockHeightCache()
+		//if err == nil {
+			util.Trace()
+			invMsg := wire.NewMsgDirInvSizeHint(1)
+			iv := wire.NewInvVect(wire.InvTypeFactomDirBlock, sha)	//hash)
+			invMsg.AddInvVect(iv)
+			p.QueueMessage(invMsg, doneChan)
+			p.continueHash = nil
+		//} else if doneChan != nil {
+		if doneChan != nil {
+			doneChan <- struct{}{}
+		}
 }
