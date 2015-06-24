@@ -754,7 +754,7 @@ func (p *peer) pushFactoidMsg(commonhash *common.Hash, doneChan, waitChan chan s
 
 func waitAndHandleLastDirBlock(p *peer, sha *wire.ShaHash, doneChan chan struct{}){
 		util.Trace("continueHash: " + spew.Sdump(sha))
-		time.Sleep(30*time.Second)
+		time.Sleep(300*time.Second)
 		
 		//
 		// Note: Rather than the latest block height, we should pass
