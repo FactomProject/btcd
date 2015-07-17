@@ -206,7 +206,7 @@ func (p *peer) handleGetNonDirDataMsg(msg *wire.MsgGetNonDirData) {
 			return
 		}
 
-		for _, dbEntry := range blk.DBEntries {
+		for _, dbEntry := range blk.Body.DBEntries {
 
 			var err error
 			switch dbEntry.ChainID.String() {
