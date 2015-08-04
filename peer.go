@@ -361,18 +361,19 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 		return
 	}
 
-	if ClientOnly {
-		if isVersionMismatch(maxProtocolVersion, msg.ProtocolVersion) {
-			errmsg := "\n\n******************** - IMPORTANT - ****************************\n\n"
-			errmsg += "\n\n      VERSION MISMATCH -- Please upgrade your software! \n\n"
-			errmsg += "\n\n***************************************************************\n\n"
-			peerLog.Error(errmsg)
-			p.Disconnect()
-			fmt.Println(errmsg)
-			os.Exit(1)
-			//return
-		}
+	//	if ClientOnly {
+	// FIXME: switch to network-wide alerts
+	if isVersionMismatch(maxProtocolVersion, msg.ProtocolVersion) {
+		errmsg := "\n\n******************** - IMPORTANT - ****************************\n\n"
+		errmsg += "\n\n      VERSION MISMATCH -- Please upgrade your software! \n\n"
+		errmsg += "\n\n***************************************************************\n\n"
+		peerLog.Error(errmsg)
+		p.Disconnect()
+		fmt.Println(errmsg)
+		os.Exit(1)
+		//return
 	}
+	//	}
 
 	// Notify and disconnect clients that have a protocol version that is
 	// too old.
@@ -473,16 +474,18 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 
 	// TODO: Relay alerts.
 
-	if !ClientOnly {
-		// Protocol version mismatch -- need client upgrade !
-		if isVersionMismatch(maxProtocolVersion, int32(p.ProtocolVersion())) {
-			//util.Trace(fmt.Sprintf("NEED client upgrade -- will ban & disconnect !: us=%d , peer= %d", maxProtocolVersion, p.ProtocolVersion()))
-			p.logError(fmt.Sprintf("NEED client upgrade -- will ban & disconnect !: us=%d , peer= %d", maxProtocolVersion, p.ProtocolVersion()))
-			//		p.Disconnect()
-			p.server.BanPeer(p)
-			return
+	/*
+		if !ClientOnly {
+			// Protocol version mismatch -- need client upgrade !
+			if isVersionMismatch(maxProtocolVersion, int32(p.ProtocolVersion())) {
+				//util.Trace(fmt.Sprintf("NEED client upgrade -- will ban & disconnect !: us=%d , peer= %d", maxProtocolVersion, p.ProtocolVersion()))
+				p.logError(fmt.Sprintf("NEED client upgrade -- will ban & disconnect !: us=%d , peer= %d", maxProtocolVersion, p.ProtocolVersion()))
+				//		p.Disconnect()
+				p.server.BanPeer(p)
+				return
+			}
 		}
-	}
+	*/
 }
 
 // pushTxMsg sends a tx message for the provided transaction hash to the

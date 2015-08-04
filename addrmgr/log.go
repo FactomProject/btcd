@@ -5,6 +5,7 @@
 package addrmgr
 
 import (
+	"fmt"
 	"github.com/FactomProject/btclog"
 )
 
@@ -15,6 +16,7 @@ var log btclog.Logger
 
 // The default amount of logging is none.
 func init() {
+	fmt.Println("1111")
 	DisableLog()
 }
 

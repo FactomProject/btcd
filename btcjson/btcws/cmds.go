@@ -7,6 +7,7 @@ package btcws
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/FactomProject/btcd/btcjson"
 	"github.com/FactomProject/btcd/wire"
@@ -27,6 +28,7 @@ Rename an account to the given new name.`
 )
 
 func init() {
+	fmt.Println("2222")
 	btcjson.RegisterCustomCmd("authenticate", parseAuthenticateCmd, nil,
 		authenticateHelp)
 	btcjson.RegisterCustomCmd("createencryptedwallet",

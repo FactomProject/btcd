@@ -3418,6 +3418,7 @@ func getDifficultyRatio(bits uint32) float64 {
 */
 
 func init() {
+	fmt.Println("3333")
 	rpcHandlers = rpcHandlersBeforeInit
 	rand.Seed(time.Now().UnixNano())
 }
