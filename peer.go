@@ -1613,11 +1613,11 @@ out:
 		case *wire.MsgRevealEntry:
 			p.handleRevealEntryMsg(msg)
 			p.FactomRelay(msg)
-			/*
-				case *wire.MsgAcknowledgement:
-					p.handleAcknoledgementMsg(msg)
-					p.FactomRelay(msg)
-			*/
+
+		case *wire.MsgAcknowledgement:
+			p.handleAcknoledgementMsg(msg)
+			//p.FactomRelay(msg)
+
 			// Factom blocks downloading
 		case *wire.MsgGetDirBlocks:
 			p.handleGetDirBlocksMsg(msg)
