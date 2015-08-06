@@ -27,7 +27,7 @@ Create a new account with the given name.`
 Rename an account to the given new name.`
 )
 
-func init() {
+func OLD_init() {
 	fmt.Println("2222")
 	btcjson.RegisterCustomCmd("authenticate", parseAuthenticateCmd, nil,
 		authenticateHelp)

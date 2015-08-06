@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd"
+
 	flags "github.com/FactomProject/go-flags"
 )
 
@@ -99,6 +101,8 @@ func cleanAndExpandPath(path string) string {
 // while still allowing the user to override settings with config files and
 // command line options.  Command line options always take precedence.
 func loadConfig() (*flags.Parser, *config, []string, error) {
+	util.Trace()
+
 	// Default config.
 	cfg := config{
 		ConfigFile: defaultConfigFile,

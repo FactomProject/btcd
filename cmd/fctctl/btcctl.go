@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strconv"
 
-	//	"github.com/FactomProject/FactomCode/util"
+	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/btcjson"
 	"github.com/FactomProject/btcd/btcjson/btcws"
 	flags "github.com/FactomProject/go-flags"
@@ -1042,6 +1042,7 @@ func usage(parser *flags.Parser) {
 }
 
 func main() {
+	util.Trace()
 	fmt.Println("main ***************")
 
 	parser, cfg, args, err := loadConfig()

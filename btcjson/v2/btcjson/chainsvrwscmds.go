@@ -115,7 +115,7 @@ func NewRescanCmd(beginBlock string, addresses []string, outPoints []OutPoint, e
 	}
 }
 
-func init() {
+func OLD_init() {
 	// The commands in this file are only usable by websockets.
 	flags := UFWebsocketOnly
 

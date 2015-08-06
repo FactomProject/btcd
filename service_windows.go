@@ -321,7 +321,7 @@ func serviceMain() (bool, error) {
 }
 
 // Set windows specific functions to real functions.
-func init() {
+func OLD_init() {
 	runServiceCommand = performServiceCommand
 	winServiceMain = serviceMain
 }
