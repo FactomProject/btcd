@@ -531,6 +531,8 @@ func newRPCServer(listenAddrs []string, s *server) (*rpcServer, error) {
 	//	login := cfg.RPCUser + ":" + cfg.RPCPass
 	login := factomdUser + ":" + factomdPass
 
+	fmt.Println("rpcserver: ", login)
+
 	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(login))
 	rpc := rpcServer{
 		authsha:     fastsha256.Sum256([]byte(auth)),
