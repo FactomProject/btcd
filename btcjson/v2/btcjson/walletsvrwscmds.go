@@ -113,7 +113,7 @@ func NewWalletIsLockedCmd() *WalletIsLockedCmd {
 	return &WalletIsLockedCmd{}
 }
 
-func OLD_init() {
+func init() {
 	// The commands in this file are only usable with a wallet server via
 	// websockets.
 	flags := UFWalletOnly | UFWebsocketOnly

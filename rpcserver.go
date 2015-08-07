@@ -457,6 +457,8 @@ func (s *rpcServer) decrementClients() {
 // This check is time-constant.
 func (s *rpcServer) checkAuth(r *http.Request, require bool) (bool, error) {
 
+	fmt.Println(r)
+
 	authhdr := r.Header["Authorization"]
 	if len(authhdr) <= 0 {
 		if require {
@@ -3417,7 +3419,7 @@ func getDifficultyRatio(bits uint32) float64 {
 }
 */
 
-func OLD_init() {
+func init() {
 	fmt.Println("3333")
 	rpcHandlers = rpcHandlersBeforeInit
 	rand.Seed(time.Now().UnixNano())

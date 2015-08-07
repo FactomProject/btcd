@@ -631,7 +631,7 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
-func OLD_init() {
+func init() {
 	// The commands in this file are only usable with a wallet server.
 	flags := UFWalletOnly
 

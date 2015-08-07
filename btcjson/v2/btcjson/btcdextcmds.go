@@ -40,7 +40,7 @@ func NewGetCurrentNetCmd() *GetCurrentNetCmd {
 	return &GetCurrentNetCmd{}
 }
 
-func OLD_init() {
+func init() {
 	// No special flags for commands in this file.
 	flags := UsageFlag(0)
 

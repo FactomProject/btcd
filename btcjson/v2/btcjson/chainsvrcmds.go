@@ -650,7 +650,7 @@ func NewVerifyMessageCmd(address, signature, message string) *VerifyMessageCmd {
 	}
 }
 
-func OLD_init() {
+func init() {
 	// No special flags for commands in this file.
 	flags := UsageFlag(0)
 

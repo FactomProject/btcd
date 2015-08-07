@@ -91,7 +91,7 @@ func NewRenameAccountCmd(oldAccount, newAccount string) *RenameAccountCmd {
 	}
 }
 
-func OLD_init() {
+func init() {
 	// The commands in this file are only usable with a wallet server.
 	flags := UFWalletOnly
 

@@ -176,7 +176,7 @@ func NewTxAcceptedVerboseNtfn(rawTx TxRawResult) *TxAcceptedVerboseNtfn {
 	}
 }
 
-func OLD_init() {
+func init() {
 	// The commands in this file are only usable by websockets and are
 	// notifications.
 	flags := UFWebsocketOnly | UFNotification
