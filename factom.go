@@ -31,7 +31,7 @@ var (
 	outCtlMsgQueue chan wire.FtmInternalMsg //outgoing message queue for factom control messages
 )
 
-var bcnt := 0
+var bcnt = 0
 
 // start up Factom queue(s) managers/processors
 // this is to be called within the btcd's main code
