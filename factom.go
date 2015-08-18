@@ -31,6 +31,8 @@ var (
 	outCtlMsgQueue chan wire.FtmInternalMsg //outgoing message queue for factom control messages
 )
 
+var bcnt := 0
+
 // start up Factom queue(s) managers/processors
 // this is to be called within the btcd's main code
 func factomForkInit(s *server) {
@@ -49,14 +51,15 @@ func factomForkInit(s *server) {
 				s.RelayInventory(iv, nil)
 
 			case wire.Message:
+				bcnt++
 				wireMsg, _ := msg.(wire.Message)
 				//s.BroadcastMessage(wireMsg)
 				if ClientOnly {
-					fmt.Println("broadcasting from client.")
+					fmt.Printf("broadcasting from client. %d\n",bcnt)
 					s.BroadcastMessage(wireMsg)
 				} else {
 					if _, ok := msg.(*wire.MsgAcknowledgement); ok {
-						fmt.Println("broadcasting from server.")
+						fmt.Printf("broadcasting from server.%d\n",bcnt)
 						s.BroadcastMessage(wireMsg)
 					}
 				}
