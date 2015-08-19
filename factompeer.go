@@ -57,12 +57,11 @@ func (p *peer) handleABlockMsg(msg *wire.MsgABlock, buf []byte) {
 // handleECBlockMsg is invoked when a peer receives a entry credit block
 // message.
 func (p *peer) handleECBlockMsg(msg *wire.MsgECBlock, buf []byte) {
-	headerHash, err:=msg.ECBlock.HeaderHash()
-	if err!=nil {
+	headerHash, err := msg.ECBlock.HeaderHash()
+	if err != nil {
 		panic(err)
 	}
 	hash := wire.FactomHashToShaHash(headerHash)
-
 
 	iv := wire.NewInvVect(wire.InvTypeFactomEntryCreditBlock, hash)
 	p.AddKnownInventory(iv)
@@ -137,7 +136,11 @@ func (p *peer) handleGetEntryDataMsg(msg *wire.MsgGetEntryData) {
 		}
 
 		for _, ebEntry := range blk.Body.EBEntries {
-
+			
+			//Skip the minute markers 
+			if ebEntry.IsMinuteMarker() {
+				continue
+			}
 			var err error
 			err = p.pushEntryMsg(ebEntry, c, waitChan)
 			if err != nil {
@@ -562,7 +565,7 @@ func (p *peer) pushFBlockMsg(commonhash *common.Hash, doneChan, waitChan chan st
 			doneChan <- struct{}{}
 		}
 		return err
-	} 
+	}
 
 	// Once we have fetched data wait for any previous operation to finish.
 	if waitChan != nil {
@@ -608,7 +611,7 @@ func (p *peer) pushECBlockMsg(commonhash *common.Hash, doneChan, waitChan chan s
 	if err != nil || blk == nil {
 		peerLog.Tracef("Unable to fetch requested Entry Credit block sha %v: %v",
 			commonhash, err)
-		
+
 		if doneChan != nil {
 			doneChan <- struct{}{}
 		}
@@ -633,7 +636,7 @@ func (p *peer) pushEBlockMsg(commonhash *common.Hash, doneChan, waitChan chan st
 	if err != nil {
 		if doneChan != nil || blk == nil {
 			peerLog.Tracef("Unable to fetch requested Entry block sha %v: %v",
-				commonhash, err)			
+				commonhash, err)
 			doneChan <- struct{}{}
 		}
 		return err
@@ -656,7 +659,7 @@ func (p *peer) pushEntryMsg(commonhash *common.Hash, doneChan, waitChan chan str
 	entry, err := db.FetchEntryByHash(commonhash)
 	if err != nil || entry == nil {
 		peerLog.Tracef("Unable to fetch requested Entry sha %v: %v",
-			commonhash, err)		
+			commonhash, err)
 		if doneChan != nil {
 			doneChan <- struct{}{}
 		}
