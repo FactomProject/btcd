@@ -314,6 +314,7 @@ func (p *peer) pushVersionMsg() error {
 // is an inbound or outbound peer and other factors such as address routability
 // and the negotiated protocol version.
 func (p *peer) updateAddresses(msg *wire.MsgVersion) {
+	util.Trace()
 	// Outbound connections.
 	if !p.inbound {
 		// TODO(davec): Only do this if not doing the initial block
@@ -1168,6 +1169,7 @@ func (p *peer) handleFilterLoadMsg(msg *wire.MsgFilterLoad) {
 // and is used to provide the peer with known addresses from the address
 // manager.
 func (p *peer) handleGetAddrMsg(msg *wire.MsgGetAddr) {
+	util.Trace()
 	// Don't return any addresses when running on the simulation test
 	// network.  This helps prevent the network from becoming another
 	// public test network since it will not be able to learn about other
@@ -1518,10 +1520,8 @@ out:
 			// Do nothing.
 
 		case *wire.MsgGetAddr:
-			/*
-				FIXME in Milestone2; disable for Milestone1 only
-					p.handleGetAddrMsg(msg)
-			*/
+			util.Trace()
+			p.handleGetAddrMsg(msg)
 
 		case *wire.MsgAddr:
 			p.handleAddrMsg(msg)
@@ -1861,6 +1861,7 @@ out:
 			case *wire.MsgVersion:
 				// should get an ack
 			case *wire.MsgGetAddr:
+				util.Trace()
 				// should get addresses
 			case *wire.MsgPing:
 				// expects pong

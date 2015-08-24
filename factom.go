@@ -17,6 +17,8 @@ import (
 	//	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/btcd/wire"
+
+	"github.com/FactomProject/FactomCode/util"
 )
 
 var _ = fmt.Printf
@@ -50,7 +52,7 @@ func factomForkInit(s *server) {
 
 			case wire.Message:
 				wireMsg, _ := msg.(wire.Message)
-						s.BroadcastMessage(wireMsg)
+				s.BroadcastMessage(wireMsg)
 
 			default:
 				panic(fmt.Sprintf("bad outMsgQueue message received: %v", msg))
@@ -130,8 +132,13 @@ func Start_btcd(
 	outCtlMsgQ chan wire.FtmInternalMsg,
 	user, pass string) {
 
+	util.Trace(user)
+	util.Trace(pass)
+
 	factomdUser = user
 	factomdPass = pass
+
+	fmt.Println("user= ", user, " pass= ", pass)
 
 	/*
 		ClientOnly = clientMode
@@ -195,31 +202,31 @@ func Start_btcd(
 // Handle factom app imcoming msg
 func (p *peer) handleCommitChainMsg(msg *wire.MsgCommitChain) {
 	// Add the msg to inbound msg queue
-		inMsgQueue <- msg
-	}
+	inMsgQueue <- msg
+}
 
 // Handle factom app imcoming msg
 func (p *peer) handleRevealChainMsg(msg *wire.MsgRevealChain) {
 	// Add the msg to inbound msg queue
-		inMsgQueue <- msg
-	}
+	inMsgQueue <- msg
+}
 
 // Handle factom app imcoming msg
 func (p *peer) handleCommitEntryMsg(msg *wire.MsgCommitEntry) {
 	// Add the msg to inbound msg queue
-		inMsgQueue <- msg
-	}
+	inMsgQueue <- msg
+}
 
 // Handle factom app imcoming msg
 func (p *peer) handleRevealEntryMsg(msg *wire.MsgRevealEntry) {
 	// Add the msg to inbound msg queue
-		inMsgQueue <- msg
-	}
+	inMsgQueue <- msg
+}
 
 // Handle factom app imcoming msg
 func (p *peer) handleAcknoledgementMsg(msg *wire.MsgAcknowledgement) {
 	// Add the msg to inbound msg queue
-		inMsgQueue <- msg
+	inMsgQueue <- msg
 }
 
 // returns true if the message should be relayed, false otherwise

@@ -563,6 +563,7 @@ func loadConfig() (*config, []string, error) {
 	//	if cfg.RPCUser == "" || cfg.RPCPass == "" {
 	if "" == factomdUser || "" == factomdPass {
 		cfg.DisableRPC = true
+		panic("Disabling the RPC server...")
 		fmt.Println("Disabling the RPC server...")
 	}
 
