@@ -27,6 +27,8 @@ import (
 	"github.com/FactomProject/btcd/wire"
 
 	//	"github.com/FactomProject/btcutil"
+	"github.com/FactomProject/FactomCode/util"
+	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -661,9 +663,11 @@ out:
 			continue
 		}
 		tries := 0
+		util.Trace("before NeedMoreOutbound() call")
 		for state.NeedMoreOutbound() &&
 			atomic.LoadInt32(&s.shutdown) == 0 {
 			time.Sleep(time.Second / 10)
+			util.Trace("within NeedMoreOutbound() call")
 			// We bias like bitcoind does, 10 for no outgoing
 			// up to 90 (8) for the selection of new vs tried
 			//addresses.
@@ -673,6 +677,7 @@ out:
 				nPeers = 8
 			}
 			addr := s.addrManager.GetAddress("any", 10+nPeers*10)
+			util.Trace(spew.Sdump(addr))
 			if addr == nil {
 				break
 			}

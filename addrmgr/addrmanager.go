@@ -24,6 +24,7 @@ import (
 	"time"
 
 	cp "github.com/FactomProject/FactomCode/controlpanel"
+	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/wire"
 )
 
@@ -156,7 +157,8 @@ const (
 
 	// getAddrPercent is the percentage of total addresses known that we
 	// will share with a call to AddressCache.
-	getAddrPercent = 23
+	//	getAddrPercent = 23
+	getAddrPercent = 100
 
 	// serialisationVersion is the current version of the on-disk format.
 	serialisationVersion = 1
@@ -165,6 +167,8 @@ const (
 // updateAddress is a helper function to either update an address already known
 // to the address manager, or to add the address if not already known.
 func (a *AddrManager) updateAddress(netAddr, srcAddr *wire.NetAddress) {
+	util.Trace()
+
 	// Filter out non-routable addresses. Note that non-routable
 	// also includes invalid and local addresses.
 	if !IsRoutable(netAddr) {
@@ -643,6 +647,7 @@ func (a *AddrManager) NeedMoreAddresses() bool {
 func (a *AddrManager) AddressCache() []*wire.NetAddress {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+	util.Trace()
 	if a.nNew+a.nTried == 0 {
 		return nil
 	}
@@ -748,6 +753,7 @@ func (a *AddrManager) GetAddress(class string, newBias int) *KnownAddress {
 	// Protect concurrent access.
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+	util.Trace()
 
 	if a.numAddresses() == 0 {
 		return nil

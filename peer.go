@@ -334,6 +334,7 @@ func (p *peer) updateAddresses(msg *wire.MsgVersion) {
 		hasTimestamp := p.ProtocolVersion() >=
 			wire.NetAddressTimeVersion
 		if p.server.addrManager.NeedMoreAddresses() && hasTimestamp {
+			util.Trace("will queue NewMsgGetAddr")
 			p.QueueMessage(wire.NewMsgGetAddr(), nil)
 		}
 

@@ -7,6 +7,7 @@ package wire
 import (
 	"bytes"
 	"fmt"
+	"github.com/FactomProject/FactomCode/util"
 	"io"
 	"unicode/utf8"
 )
@@ -104,6 +105,7 @@ func makeEmptyMessage(command string) (Message, error) {
 		msg = &MsgFBlock{}
 
 	case CmdGetAddr:
+		util.Trace("cmdGetAddr")
 		msg = &MsgGetAddr{}
 
 	case CmdAddr:
