@@ -22,15 +22,13 @@ func maxNetAddressPayload(pver uint32) uint32 {
 	// Services 8 bytes + ip 16 bytes + port 2 bytes.
 	plen := uint32(26)
 
-	/*
-		// NetAddressTimeVersion added a timestamp field.
-		if pver >= NetAddressTimeVersion {
-			// Timestamp 4 bytes.
-			plen += 4
-		}
-	*/
-
-	panic("Unclear what +4 is used for !")
+	// NetAddressTimeVersion added a timestamp field.
+	if pver >= NetAddressTimeVersion {
+		// Timestamp 4 bytes.
+		plen += 4
+	} else {
+		panic("TBD what happens here: what is +4 used for !")
+	}
 
 	return plen
 }
@@ -119,16 +117,16 @@ func readNetAddress(r io.Reader, pver uint32, na *NetAddress, ts bool) error {
 	// NOTE: The bitcoin protocol uses a uint32 for the timestamp so it will
 	// stop working somewhere around 2106.  Also timestamp wasn't added until
 	// protocol version >= NetAddressTimeVersion
-	/*
-		if ts && pver >= NetAddressTimeVersion {
-			var stamp uint32
-			err := readElement(r, &stamp)
-			if err != nil {
-				return err
-			}
-			timestamp = time.Unix(int64(stamp), 0)
+	if ts && pver >= NetAddressTimeVersion {
+		var stamp uint32
+		err := readElement(r, &stamp)
+		if err != nil {
+			return err
 		}
-	*/
+		timestamp = time.Unix(int64(stamp), 0)
+	} else {
+		panic("TBD should never trigger")
+	}
 
 	err := readElements(r, &services, &ip)
 	if err != nil {
@@ -155,14 +153,14 @@ func writeNetAddress(w io.Writer, pver uint32, na *NetAddress, ts bool) error {
 	// NOTE: The bitcoin protocol uses a uint32 for the timestamp so it will
 	// stop working somewhere around 2106.  Also timestamp wasn't added until
 	// until protocol version >= NetAddressTimeVersion.
-	/*
-		if ts && pver >= NetAddressTimeVersion {
-			err := writeElement(w, uint32(na.Timestamp.Unix()))
-			if err != nil {
-				return err
-			}
+	if ts && pver >= NetAddressTimeVersion {
+		err := writeElement(w, uint32(na.Timestamp.Unix()))
+		if err != nil {
+			return err
 		}
-	*/
+	} else {
+		panic("TBD should never trigger 2")
+	}
 
 	// Ensure to always write 16 bytes even if the ip is nil.
 	var ip [16]byte

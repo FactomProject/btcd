@@ -18,11 +18,10 @@ const (
 	// addresses per message (pver >= MultipleAddressVersion).
 	MultipleAddressVersion uint32 = 209
 
-	/*
-		// NetAddressTimeVersion is the protocol version which added the
-		// timestamp field (pver >= NetAddressTimeVersion).
-		NetAddressTimeVersion uint32 = 31402
-	*/
+	// NetAddressTimeVersion is the protocol version which added the
+	// timestamp field (pver >= NetAddressTimeVersion).
+	//		NetAddressTimeVersion uint32 = 31402
+	NetAddressTimeVersion uint32 = 1
 
 	// BIP0031Version is the protocol version AFTER which a pong message
 	// and nonce field in ping were added (pver > BIP0031Version).

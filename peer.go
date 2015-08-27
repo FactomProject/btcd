@@ -334,13 +334,10 @@ func (p *peer) updateAddresses(msg *wire.MsgVersion) {
 		// Request known addresses if the server address manager needs
 		// more and the peer has a protocol version new enough to
 		// include a timestamp with addresses.
-		/*
-			hasTimestamp := p.ProtocolVersion() >=
-				wire.NetAddressTimeVersion
-		*/
+		hasTimestamp := p.ProtocolVersion() >=
+			wire.NetAddressTimeVersion
 		util.Trace("peer 4")
-		//		if p.server.addrManager.NeedMoreAddresses() && hasTimestamp {
-		if p.server.addrManager.NeedMoreAddresses() {
+		if p.server.addrManager.NeedMoreAddresses() && hasTimestamp {
 			util.Trace("will queue NewMsgGetAddr")
 			p.QueueMessage(wire.NewMsgGetAddr(), nil)
 		}
@@ -1254,12 +1251,10 @@ func (p *peer) handleAddrMsg(msg *wire.MsgAddr) {
 		return
 	}
 
-	/*
-		// Ignore old style addresses which don't include a timestamp.
-		if p.ProtocolVersion() < wire.NetAddressTimeVersion {
-			return
-		}
-	*/
+	// Ignore old style addresses which don't include a timestamp.
+	if p.ProtocolVersion() < wire.NetAddressTimeVersion {
+		return
+	}
 
 	// A message that has no addresses is invalid.
 	if len(msg.AddrList) == 0 {
