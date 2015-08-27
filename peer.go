@@ -314,33 +314,42 @@ func (p *peer) pushVersionMsg() error {
 // is an inbound or outbound peer and other factors such as address routability
 // and the negotiated protocol version.
 func (p *peer) updateAddresses(msg *wire.MsgVersion) {
-	util.Trace()
+	util.Trace("p *peer")
 	// Outbound connections.
 	if !p.inbound {
+		util.Trace("peer 1")
 		// TODO(davec): Only do this if not doing the initial block
 		// download and the local address is routable.
 		if !cfg.DisableListen /* && isCurrent? */ {
 			// Get address that best matches.
+			util.Trace("peer 2")
 			lna := p.server.addrManager.GetBestLocalAddress(p.na)
 			if addrmgr.IsRoutable(lna) {
 				addresses := []*wire.NetAddress{lna}
 				p.pushAddrMsg(addresses)
+				util.Trace("peer 3")
 			}
 		}
 
 		// Request known addresses if the server address manager needs
 		// more and the peer has a protocol version new enough to
 		// include a timestamp with addresses.
-		hasTimestamp := p.ProtocolVersion() >=
-			wire.NetAddressTimeVersion
-		if p.server.addrManager.NeedMoreAddresses() && hasTimestamp {
+		/*
+			hasTimestamp := p.ProtocolVersion() >=
+				wire.NetAddressTimeVersion
+		*/
+		util.Trace("peer 4")
+		//		if p.server.addrManager.NeedMoreAddresses() && hasTimestamp {
+		if p.server.addrManager.NeedMoreAddresses() {
 			util.Trace("will queue NewMsgGetAddr")
 			p.QueueMessage(wire.NewMsgGetAddr(), nil)
 		}
+		util.Trace("peer 5")
 
 		// Mark the address as a known good address.
 		p.server.addrManager.Good(p.na)
 	} else {
+		util.Trace("peer 6")
 		// A peer might not be advertising the same address that it
 		// actually connected from.  One example of why this can happen
 		// is with NAT.  Only add the address to the address manager if
@@ -464,6 +473,7 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 	// to specified peers and actively avoids advertising and connecting to
 	// discovered peers.
 	if !cfg.SimNet {
+		util.Trace("will call peer's updateAddresses")
 		p.updateAddresses(msg)
 	}
 
@@ -1244,10 +1254,12 @@ func (p *peer) handleAddrMsg(msg *wire.MsgAddr) {
 		return
 	}
 
-	// Ignore old style addresses which don't include a timestamp.
-	if p.ProtocolVersion() < wire.NetAddressTimeVersion {
-		return
-	}
+	/*
+		// Ignore old style addresses which don't include a timestamp.
+		if p.ProtocolVersion() < wire.NetAddressTimeVersion {
+			return
+		}
+	*/
 
 	// A message that has no addresses is invalid.
 	if len(msg.AddrList) == 0 {

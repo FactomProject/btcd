@@ -158,7 +158,7 @@ const (
 	// getAddrPercent is the percentage of total addresses known that we
 	// will share with a call to AddressCache.
 	//	getAddrPercent = 23
-	getAddrPercent = 100
+	getAddrPercent = 100 // no secrets at this point in time: Milestone1 and Milestone2
 
 	// serialisationVersion is the current version of the on-disk format.
 	serialisationVersion = 1
@@ -172,6 +172,7 @@ func (a *AddrManager) updateAddress(netAddr, srcAddr *wire.NetAddress) {
 	// Filter out non-routable addresses. Note that non-routable
 	// also includes invalid and local addresses.
 	if !IsRoutable(netAddr) {
+		util.Trace("return 1")
 		return
 	}
 
@@ -196,11 +197,13 @@ func (a *AddrManager) updateAddress(netAddr, srcAddr *wire.NetAddress) {
 
 		// If already in tried, we have nothing to do here.
 		if ka.tried {
+			util.Trace("return 2")
 			return
 		}
 
 		// Already at our max?
 		if ka.refs == newBucketsPerAddress {
+			util.Trace("return 3")
 			return
 		}
 
@@ -208,6 +211,7 @@ func (a *AddrManager) updateAddress(netAddr, srcAddr *wire.NetAddress) {
 		// likelihood is 2N.
 		factor := int32(2 * ka.refs)
 		if a.rand.Int31n(factor) != 0 {
+			util.Trace("return 4")
 			return
 		}
 	} else {
@@ -225,6 +229,7 @@ func (a *AddrManager) updateAddress(netAddr, srcAddr *wire.NetAddress) {
 
 	// Already exists?
 	if _, ok := a.addrNew[bucket][addr]; ok {
+		util.Trace("return 5")
 		return
 	}
 
@@ -638,6 +643,8 @@ func (a *AddrManager) NumAddresses() int {
 func (a *AddrManager) NeedMoreAddresses() bool {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+
+	util.Trace(fmt.Sprintf("a.num()= %d, threshold= %d", a.numAddresses(), needAddressThreshold))
 
 	return a.numAddresses() < needAddressThreshold
 }
