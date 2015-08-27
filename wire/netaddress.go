@@ -122,8 +122,6 @@ func readNetAddress(r io.Reader, pver uint32, na *NetAddress, ts bool) error {
 			return err
 		}
 		timestamp = time.Unix(int64(stamp), 0)
-	} else {
-		panic("TBD should never trigger")
 	}
 
 	err := readElements(r, &services, &ip)
@@ -154,8 +152,6 @@ func writeNetAddress(w io.Writer, pver uint32, na *NetAddress, ts bool) error {
 		if err != nil {
 			return err
 		}
-	} else {
-		panic("TBD should never trigger 2")
 	}
 
 	// Ensure to always write 16 bytes even if the ip is nil.

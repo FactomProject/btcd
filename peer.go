@@ -1736,13 +1736,16 @@ func (p *peer) queueHandler() {
 	}
 out:
 	for {
+		util.Trace("for BEFORE select")
 		select {
 		case msg := <-p.outputQueue:
+			util.Trace("case: outputQueue")
 			waiting = queuePacket(msg, pendingMsgs, waiting)
 
 		// This channel is notified when a message has been sent across
 		// the network socket.
 		case <-p.sendDoneQueue:
+			util.Trace("case: sendDoneQueue")
 			peerLog.Tracef("%s: acked by outhandler", p)
 
 			// No longer waiting if there are no more messages
@@ -1761,6 +1764,7 @@ out:
 			peerLog.Tracef("%s: sent to outHandler", p)
 
 		case iv := <-p.outputInvChan:
+			util.Trace("case: outputInvChan")
 			// No handshake?  They'll find out soon enough.
 			if p.VersionKnown() {
 				invSendQueue.PushBack(iv)
@@ -1807,6 +1811,7 @@ out:
 			}
 
 		case <-p.quit:
+			util.Trace("case: quit")
 			break out
 		}
 	}
@@ -1940,6 +1945,8 @@ cleanup:
 // uses a buffered channel to communicate with the output handler goroutine so
 // it is automatically rate limited and safe for concurrent access.
 func (p *peer) QueueMessage(msg wire.Message, doneChan chan struct{}) {
+	util.Trace(fmt.Sprintf(spew.Sdump(msg)))
+
 	// Avoid risk of deadlock if goroutine already exited. The goroutine
 	// we will be sending to hangs around until it knows for a fact that
 	// it is marked as disconnected. *then* it drains the channels.
@@ -1952,6 +1959,8 @@ func (p *peer) QueueMessage(msg wire.Message, doneChan chan struct{}) {
 		}
 		return
 	}
+
+	util.Trace("queued to outputQueue")
 	p.outputQueue <- outMsg{msg: msg, doneChan: doneChan}
 }
 
