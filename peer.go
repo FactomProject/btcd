@@ -1811,7 +1811,7 @@ out:
 			}
 
 		case <-p.quit:
-			util.Trace("case: quit")
+			//			util.Trace("case: quit")
 			break out
 		}
 	}
