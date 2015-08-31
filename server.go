@@ -406,6 +406,7 @@ func (s *server) handleQuery(querymsg interface{}, state *peerState) {
 		msg.reply <- nconnected
 
 	case getPeerInfoMsg:
+		util.Trace()
 		syncPeer := s.blockManager.SyncPeer()
 		infos := make([]*btcjson.GetPeerInfoResult, 0, state.peers.Len())
 		state.forAllPeers(func(p *peer) {

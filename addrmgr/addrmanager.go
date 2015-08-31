@@ -26,6 +26,7 @@ import (
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/wire"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var _ = cp.CP
@@ -167,7 +168,7 @@ const (
 // updateAddress is a helper function to either update an address already known
 // to the address manager, or to add the address if not already known.
 func (a *AddrManager) updateAddress(netAddr, srcAddr *wire.NetAddress) {
-	util.Trace()
+	util.Trace(fmt.Sprintf(spew.Sdump(netAddr)))
 
 	// Filter out non-routable addresses. Note that non-routable
 	// also includes invalid and local addresses.
@@ -586,6 +587,8 @@ func (a *AddrManager) AddAddresses(addrs []*wire.NetAddress, srcAddr *wire.NetAd
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 
+	util.Trace(fmt.Sprintf(spew.Sdump(addrs)))
+
 	for _, na := range addrs {
 		a.updateAddress(na, srcAddr)
 	}
@@ -597,6 +600,8 @@ func (a *AddrManager) AddAddresses(addrs []*wire.NetAddress, srcAddr *wire.NetAd
 func (a *AddrManager) AddAddress(addr, srcAddr *wire.NetAddress) {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+
+	util.Trace(fmt.Sprintf(spew.Sdump(addr)))
 
 	a.updateAddress(addr, srcAddr)
 }
