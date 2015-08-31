@@ -1178,7 +1178,7 @@ func (p *peer) handleFilterLoadMsg(msg *wire.MsgFilterLoad) {
 // and is used to provide the peer with known addresses from the address
 // manager.
 func (p *peer) handleGetAddrMsg(msg *wire.MsgGetAddr) {
-	util.Trace()
+	util.Trace("will get from cache!")
 	// Don't return any addresses when running on the simulation test
 	// network.  This helps prevent the network from becoming another
 	// public test network since it will not be able to learn about other
@@ -1207,6 +1207,8 @@ func (p *peer) pushAddrMsg(addresses []*wire.NetAddress) error {
 		return nil
 	}
 
+	util.Trace()
+
 	r := prand.New(prand.NewSource(time.Now().UnixNano()))
 	numAdded := 0
 	msg := wire.NewMsgAddr()
@@ -1230,6 +1232,7 @@ func (p *peer) pushAddrMsg(addresses []*wire.NetAddress) error {
 		}
 		numAdded++
 	}
+
 	if numAdded > 0 {
 		for _, na := range msg.AddrList {
 			// Add address to known addresses for this peer.
@@ -1244,16 +1247,20 @@ func (p *peer) pushAddrMsg(addresses []*wire.NetAddress) error {
 // handleAddrMsg is invoked when a peer receives an addr bitcoin message and
 // is used to notify the server about advertised addresses.
 func (p *peer) handleAddrMsg(msg *wire.MsgAddr) {
+	util.Trace()
+
 	// Ignore addresses when running on the simulation test network.  This
 	// helps prevent the network from becoming another public test network
 	// since it will not be able to learn about other peers that have not
 	// specifically been provided.
 	if cfg.SimNet {
+		panic("bad logic 0")
 		return
 	}
 
 	// Ignore old style addresses which don't include a timestamp.
 	if p.ProtocolVersion() < wire.NetAddressTimeVersion {
+		panic("bad logic 1")
 		return
 	}
 
@@ -1875,7 +1882,7 @@ out:
 			case *wire.MsgVersion:
 				// should get an ack
 			case *wire.MsgGetAddr:
-				util.Trace()
+				util.Trace("OUT")
 				// should get addresses
 			case *wire.MsgPing:
 				// expects pong

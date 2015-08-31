@@ -373,6 +373,8 @@ func (a *AddrManager) savePeers() {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 
+	util.Trace()
+
 	// First we make a serialisable datastructure so we can encode it to
 	// json.
 	sam := new(serializedAddrManager)
@@ -430,6 +432,8 @@ func (a *AddrManager) savePeers() {
 func (a *AddrManager) loadPeers() {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+
+	util.Trace()
 
 	err := a.deserializePeers(a.peersFile)
 	if err != nil {
@@ -659,7 +663,9 @@ func (a *AddrManager) NeedMoreAddresses() bool {
 func (a *AddrManager) AddressCache() []*wire.NetAddress {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+
 	util.Trace()
+
 	if a.nNew+a.nTried == 0 {
 		return nil
 	}
@@ -765,6 +771,7 @@ func (a *AddrManager) GetAddress(class string, newBias int) *KnownAddress {
 	// Protect concurrent access.
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
+
 	util.Trace()
 
 	if a.numAddresses() == 0 {

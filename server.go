@@ -807,6 +807,8 @@ func (s *server) PeerInfo() []*btcjson.GetPeerInfoResult {
 // peer will be persistent and reconnect if the connection is lost.
 // It is an error to call this with an already existing peer.
 func (s *server) AddAddr(addr string, permanent bool) error {
+	util.Trace()
+
 	replyChan := make(chan error)
 
 	s.query <- addNodeMsg{addr: addr, permanent: permanent, reply: replyChan}

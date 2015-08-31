@@ -6,6 +6,7 @@ package wire
 
 import (
 	"fmt"
+	"github.com/FactomProject/FactomCode/util"
 	"io"
 )
 
@@ -29,6 +30,8 @@ type MsgAddr struct {
 
 // AddAddress adds a known active peer to the message.
 func (msg *MsgAddr) AddAddress(na *NetAddress) error {
+	util.Trace()
+
 	if len(msg.AddrList)+1 > MaxAddrPerMsg {
 		str := fmt.Sprintf("too many addresses in message [max %v]",
 			MaxAddrPerMsg)
@@ -41,6 +44,8 @@ func (msg *MsgAddr) AddAddress(na *NetAddress) error {
 
 // AddAddresses adds multiple known active peers to the message.
 func (msg *MsgAddr) AddAddresses(netAddrs ...*NetAddress) error {
+	util.Trace()
+
 	for _, na := range netAddrs {
 		err := msg.AddAddress(na)
 		if err != nil {
@@ -52,6 +57,8 @@ func (msg *MsgAddr) AddAddresses(netAddrs ...*NetAddress) error {
 
 // ClearAddresses removes all addresses from the message.
 func (msg *MsgAddr) ClearAddresses() {
+	util.Trace()
+
 	msg.AddrList = []*NetAddress{}
 }
 
