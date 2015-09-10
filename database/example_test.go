@@ -7,10 +7,10 @@ package database_test
 import (
 	"fmt"
 
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/database"
-	_ "github.com/btcsuite/btcd/database/memdb"
-	"github.com/btcsuite/btcutil"
+	"github.com/FactomProject/btcd/chaincfg"
+	"github.com/FactomProject/btcd/database"
+	_ "github.com/FactomProject/btcd/database/memdb"
+	"github.com/FactomProject/btcutil"
 )
 
 // This example demonstrates creating a new database and inserting the genesis
@@ -20,8 +20,8 @@ func ExampleCreateDB() {
 	// Ordinarily this would be whatever driver(s) your application
 	// requires.
 	// import (
-	//	"github.com/btcsuite/btcd/database"
-	// 	_ "github.com/btcsuite/btcd/database/memdb"
+	//	"github.com/FactomProject/btcd/database"
+	// 	_ "github.com/FactomProject/btcd/database/memdb"
 	// )
 
 	// Create a database and schedule it to be closed on exit.  This example

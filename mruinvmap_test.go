@@ -2,14 +2,14 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"crypto/rand"
 	"fmt"
 	"testing"
 
-	"github.com/btcsuite/btcd/wire"
+	"github.com/FactomProject/btcd/wire"
 )
 
 // TestMruInventoryMap ensures the MruInventoryMap behaves as expected including

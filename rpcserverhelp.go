@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/btcsuite/btcd/btcjson"
+	"github.com/FactomProject/btcd/btcjson"
 )
 
 // helpDescsEnUS defines the English descriptions used for the help strings.

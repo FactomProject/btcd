@@ -2,18 +2,18 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/btcsuite/btcd/blockchain"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/database"
-	_ "github.com/btcsuite/btcd/database/ldb"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/FactomProject/btcd/blockchain"
+	"github.com/FactomProject/btcd/chaincfg"
+	"github.com/FactomProject/btcd/database"
+	_ "github.com/FactomProject/btcd/database/ldb"
+	"github.com/FactomProject/btcd/wire"
 )
 
 const blockDbNamePrefix = "blocks"

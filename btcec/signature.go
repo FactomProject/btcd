@@ -14,7 +14,7 @@ import (
 	"hash"
 	"math/big"
 
-	"github.com/btcsuite/fastsha256"
+	"github.com/FactomProject/fastsha256"
 )
 
 // Errors returned by canonicalPadding.

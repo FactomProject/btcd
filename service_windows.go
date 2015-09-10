@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"fmt"
@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/btcsuite/winsvc/eventlog"
-	"github.com/btcsuite/winsvc/mgr"
-	"github.com/btcsuite/winsvc/svc"
+	"github.com/FactomProject/winsvc/eventlog"
+	"github.com/FactomProject/winsvc/mgr"
+	"github.com/FactomProject/winsvc/svc"
 )
 
 const (

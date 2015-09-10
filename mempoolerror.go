@@ -2,11 +2,11 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
-	"github.com/btcsuite/btcd/blockchain"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/FactomProject/btcd/blockchain"
+	"github.com/FactomProject/btcd/wire"
 )
 
 // RuleError identifies a rule violation.  It is used to indicate that

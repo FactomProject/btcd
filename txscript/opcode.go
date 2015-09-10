@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/fastsha256"
-	"github.com/btcsuite/golangcrypto/ripemd160"
+	"github.com/FactomProject/btcd/btcec"
+	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/fastsha256"
+	"github.com/FactomProject/golangcrypto/ripemd160"
 )
 
 // An opcode defines the information related to a txscript opcode.  opfunc if

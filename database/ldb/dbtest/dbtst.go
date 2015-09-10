@@ -1,11 +1,11 @@
 //
-package main
+package btcd
 
 import (
 	"fmt"
 
-	"github.com/btcsuite/goleveldb/leveldb"
-	"github.com/btcsuite/goleveldb/leveldb/opt"
+	"github.com/FactomProject/goleveldb/leveldb"
+	"github.com/FactomProject/goleveldb/leveldb/opt"
 )
 
 type tst struct {

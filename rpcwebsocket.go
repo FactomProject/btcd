@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"bytes"
@@ -17,14 +17,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/database"
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/fastsha256"
-	"github.com/btcsuite/golangcrypto/ripemd160"
-	"github.com/btcsuite/websocket"
+	"github.com/FactomProject/btcd/btcjson"
+	"github.com/FactomProject/btcd/database"
+	"github.com/FactomProject/btcd/txscript"
+	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/btcutil"
+	"github.com/FactomProject/fastsha256"
+	"github.com/FactomProject/golangcrypto/ripemd160"
+	"github.com/FactomProject/websocket"
 )
 
 const (

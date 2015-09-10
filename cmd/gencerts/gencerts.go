@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcutil"
-	flags "github.com/btcsuite/go-flags"
+	"github.com/FactomProject/btcutil"
+	flags "github.com/FactomProject/go-flags"
 )
 
 type config struct {

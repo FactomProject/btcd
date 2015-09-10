@@ -1,4 +1,4 @@
-package main
+package btcd
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcjson"
+	"github.com/FactomProject/btcd/btcjson"
 )
 
 const (

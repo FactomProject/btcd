@@ -7,9 +7,9 @@ package database
 import (
 	"errors"
 
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/golangcrypto/ripemd160"
+	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/btcutil"
+	"github.com/FactomProject/golangcrypto/ripemd160"
 )
 
 // Errors that the various database functions may return.

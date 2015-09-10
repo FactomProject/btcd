@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
+	. "github.com/FactomProject/btcd/txscript"
+	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/btcutil"
 )
 
 // testName returns a descriptive test name for the given reference test data.

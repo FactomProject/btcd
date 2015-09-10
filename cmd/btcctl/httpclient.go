@@ -1,4 +1,4 @@
-package main
+package btcd
 
 import (
 	"bytes"
@@ -10,8 +10,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/go-socks/socks"
+	"github.com/FactomProject/btcd/btcjson"
+	"github.com/FactomProject/go-socks/socks"
 )
 
 // newHTTPClient returns a new HTTP client that is configured according to the

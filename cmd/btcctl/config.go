@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"fmt"
@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcutil"
-	flags "github.com/btcsuite/go-flags"
+	"github.com/FactomProject/btcd/btcjson"
+	"github.com/FactomProject/btcutil"
+	flags "github.com/FactomProject/go-flags"
 )
 
 const (

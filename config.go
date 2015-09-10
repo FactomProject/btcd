@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package main
+package btcd
 
 import (
 	"errors"
@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcd/database"
-	_ "github.com/btcsuite/btcd/database/ldb"
-	_ "github.com/btcsuite/btcd/database/memdb"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	flags "github.com/btcsuite/go-flags"
-	"github.com/btcsuite/go-socks/socks"
+	"github.com/FactomProject/btcd/database"
+	_ "github.com/FactomProject/btcd/database/ldb"
+	_ "github.com/FactomProject/btcd/database/memdb"
+	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/btcutil"
+	flags "github.com/FactomProject/go-flags"
+	"github.com/FactomProject/go-socks/socks"
 )
 
 const (
