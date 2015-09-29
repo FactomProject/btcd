@@ -29,7 +29,7 @@ const (
 	defaultConfigFilename = "NONE.conf"
 	//	defaultDataDirname       = "data"
 	defaultLogLevel    = "info"
-	defaultLogDirname  = "logs"
+	defaultLogDirname  = ""
 	defaultLogFilename = "factom-d.log"
 	//	defaultMaxPeers          = 125
 	// defaultMaxPeers          = 10
