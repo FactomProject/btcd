@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os/user"	
 
 	//	"github.com/FactomProject/btcd/database"
 	//	_ "github.com/FactomProject/btcd/database/ldb"
@@ -51,7 +52,7 @@ const (
 )
 
 var (
-	btcdHomeDir       = AppDataDir("factom", false)
+	btcdHomeDir       = getHomeDir() + "/.factom/"
 	defaultConfigFile = filepath.Join(btcdHomeDir, defaultConfigFilename)
 	//	defaultDataDir    = filepath.Join(btcdHomeDir, defaultDataDirname)
 	defaultDataDir = filepath.Join(btcdHomeDir)
@@ -790,4 +791,21 @@ func btcdLookup(host string) ([]net.IP, error) {
 		return cfg.onionlookup(host)
 	}
 	return cfg.lookup(host)
+}
+
+func getHomeDir() string {
+	// Get the OS specific home directory via the Go standard lib.
+	var homeDir string
+	usr, err := user.Current()
+	if err == nil {
+		homeDir = usr.HomeDir
+	}
+
+	// Fall back to standard HOME environment variable that works
+	// for most POSIX OSes if the directory from the Go standard
+	// lib failed.
+	if err != nil || homeDir == "" {
+		homeDir = os.Getenv("HOME")
+	}
+	return homeDir
 }
