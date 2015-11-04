@@ -1063,12 +1063,10 @@ func parseListeners(addrs []string) ([]string, []string, bool, error) {
 
 		// Strip IPv6 zone id if present since net.ParseIP does not
 		// handle it.
-		fmt.Println("localhost=", host)
 		zoneIndex := strings.LastIndex(host, "%")
 		if zoneIndex > 0 {
 			host = host[:zoneIndex]
 		}
-		fmt.Println("localhost=", host)
 
 		// Parse the IP.
 		ip := net.ParseIP(host)
@@ -1076,7 +1074,6 @@ func parseListeners(addrs []string) ([]string, []string, bool, error) {
 			return nil, nil, false, fmt.Errorf("'%s' is not a "+
 				"valid IP address", host)
 		}
-		fmt.Println("parseIP=", ip)
 
 		// To4 returns nil when the IP is not an IPv4 address, so use
 		// this determine the address type.
