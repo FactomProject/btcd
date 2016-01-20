@@ -31,7 +31,7 @@ const (
 	//	defaultDataDirname       = "data"
 	defaultLogLevel    = "info"
 	defaultLogDirname  = ""
-	defaultLogFilename = "factom-d.log"
+	defaultLogFilename = "btcd.log"
 	//	defaultMaxPeers          = 125
 	// defaultMaxPeers          = 10
 	defaultMaxPeers = 125
