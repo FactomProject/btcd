@@ -33,11 +33,11 @@ var _ = util.Trace
 const (
 	// We need the version for webservices, and the limit should not be the version
 	// anyway.
-	ProtocolVersion = 1005 // version starts from 1000 for Factom 
-	
+	ProtocolVersion = 1005 // version starts from 1000 for Factom
+
 	// maxProtocolVersion is the max protocol version the peer supports.
 	maxProtocolVersion = ProtocolVersion
-	
+
 	// outputBufferSize is the number of elements the output channels use.
 	outputBufferSize = 50
 
