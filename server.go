@@ -933,26 +933,26 @@ func (s *server) Start() {
 		s.wg.Add(1)
 		go s.upnpUpdateThread()
 	}
-
-	if !cfg.DisableRPC {
-		s.wg.Add(1)
-
-		// Start the rebroadcastHandler, which ensures user tx received by
-		// the RPC server are rebroadcast until being included in a block.
-		go s.rebroadcastHandler()
-
-		s.rpcServer.Start()
-	}
-
 	/*
-			// Start the CPU miner if generation is enabled.
-			if cfg.Generate {
-				s.cpuMiner.Start()
-			}
+		if !cfg.DisableRPC {
+			s.wg.Add(1)
 
-		if cfg.AddrIndex {
-			s.addrIndexer.Start()
+			// Start the rebroadcastHandler, which ensures user tx received by
+			// the RPC server are rebroadcast until being included in a block.
+			go s.rebroadcastHandler()
+
+			s.rpcServer.Start()
 		}
+
+
+				// Start the CPU miner if generation is enabled.
+				if cfg.Generate {
+					s.cpuMiner.Start()
+				}
+
+			if cfg.AddrIndex {
+				s.addrIndexer.Start()
+			}
 	*/
 }
 
@@ -1302,21 +1302,21 @@ func newServer(listenAddrs []string, chainParams *chaincfg.Params) (*server, err
 	//	s.cpuMiner = newCPUMiner(&s)
 
 	/*
-		if cfg.AddrIndex {
-			ai, err := newAddrIndexer(&s)
+			if cfg.AddrIndex {
+				ai, err := newAddrIndexer(&s)
+				if err != nil {
+					return nil, err
+				}
+				s.addrIndexer = ai
+			}
+
+
+		if !cfg.DisableRPC {
+			s.rpcServer, err = newRPCServer(cfg.RPCListeners, &s)
 			if err != nil {
 				return nil, err
 			}
-			s.addrIndexer = ai
-		}
-	*/
-
-	if !cfg.DisableRPC {
-		s.rpcServer, err = newRPCServer(cfg.RPCListeners, &s)
-		if err != nil {
-			return nil, err
-		}
-	}
+		}*/
 
 	return &s, nil
 }
