@@ -13,7 +13,13 @@ import (
 
 // MaxBlockLocatorsPerMsg is the maximum number of Directory block locator hashes allowed
 // per message.
-//const MaxBlockLocatorsPerMsg = 500
+const MaxBlockLocatorsPerMsg = 500
+
+// MaxBlocksPerMsg is the maximum number of blocks allowed per message.
+const MaxBlocksPerMsg = 500
+
+// MaxBlockPayload is the maximum bytes a block message can be in bytes.
+const MaxBlockPayload = 1000000 // Not actually 1MB which would be 1024 * 1024
 
 // MsgGetDirBlocks implements the Message interface and represents a factom
 // getdirblocks message.  It is used to request a list of blocks starting after the

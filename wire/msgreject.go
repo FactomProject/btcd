@@ -101,13 +101,13 @@ func (msg *MsgReject) BtcDecode(r io.Reader, pver uint32) error {
 
 	// CmdBlock and CmdTx messages have an additional hash field that
 	// identifies the specific block or transaction.
-	if msg.Cmd == CmdBlock || msg.Cmd == CmdTx {
-		err := readElement(r, &msg.Hash)
-		if err != nil {
-			return err
+	/*	if msg.Cmd == CmdBlock || msg.Cmd == CmdTx {
+			err := readElement(r, &msg.Hash)
+			if err != nil {
+				return err
+			}
 		}
-	}
-
+	*/
 	return nil
 }
 
@@ -141,13 +141,13 @@ func (msg *MsgReject) BtcEncode(w io.Writer, pver uint32) error {
 
 	// CmdBlock and CmdTx messages have an additional hash field that
 	// identifies the specific block or transaction.
-	if msg.Cmd == CmdBlock || msg.Cmd == CmdTx {
-		err := writeElement(w, &msg.Hash)
-		if err != nil {
-			return err
+	/*	if msg.Cmd == CmdBlock || msg.Cmd == CmdTx {
+			err := writeElement(w, &msg.Hash)
+			if err != nil {
+				return err
+			}
 		}
-	}
-
+	*/
 	return nil
 }
 

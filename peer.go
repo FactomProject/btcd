@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/FactomProject/btcd/addrmgr"
-	"github.com/FactomProject/btcd/blockchain"
 	//	"github.com/FactomProject/btcd/database"
 	"github.com/FactomProject/btcd/wire"
 	//	"github.com/FactomProject/btcutil"
@@ -689,7 +688,7 @@ func (p *peer) pushMerkleBlockMsg(sha *wire.ShaHash, doneChan, waitChan chan str
 
 	return nil
 }
-*/
+
 
 // PushGetBlocksMsg sends a getblocks message for the provided block locator
 // and stop hash.  It will ignore back-to-back duplicate requests.
@@ -729,7 +728,6 @@ func (p *peer) PushGetBlocksMsg(locator blockchain.BlockLocator, stopHash *wire.
 	return nil
 }
 
-/*
 // PushGetHeadersMsg sends a getblocks message for the provided block locator
 // and stop hash.  It will ignore back-to-back duplicate requests.
 func (p *peer) PushGetHeadersMsg(locator blockchain.BlockLocator, stopHash *wire.ShaHash) error {
@@ -781,7 +779,7 @@ func (p *peer) PushRejectMsg(command string, code wire.RejectCode, reason string
 	}
 
 	msg := wire.NewMsgReject(command, code, reason)
-	if command == wire.CmdTx || command == wire.CmdBlock {
+	/*	if command == wire.CmdTx || command == wire.CmdBlock {
 		if hash == nil {
 			peerLog.Warnf("Sending a reject message for command "+
 				"type %v which should have specified a hash "+
@@ -789,7 +787,7 @@ func (p *peer) PushRejectMsg(command string, code wire.RejectCode, reason string
 			hash = &zeroHash
 		}
 		msg.Hash = *hash
-	}
+	}*/
 
 	// Send the message without waiting if the caller has not requested it.
 	if !wait {
@@ -914,7 +912,7 @@ func (p *peer) handleInvMsg(msg *wire.MsgInv) {
 func (p *peer) handleHeadersMsg(msg *wire.MsgHeaders) {
 	p.server.blockManager.QueueHeaders(msg, p)
 }
-*/
+
 
 // handleGetData is invoked when a peer receives a getdata bitcoin message and
 // is used to deliver block and transaction information.
@@ -940,16 +938,16 @@ func (p *peer) handleGetDataMsg(msg *wire.MsgGetData) {
 		}
 		var err error
 		switch iv.Type {
-		case wire.InvTypeTx:
-			err = p.pushTxMsg(&iv.Hash, c, waitChan)
-		case wire.InvTypeBlock:
-			err = p.pushBlockMsg(&iv.Hash, c, waitChan)
+		//case wire.InvTypeTx:
+		//err = p.pushTxMsg(&iv.Hash, c, waitChan)
+		//case wire.InvTypeBlock:
+		//err = p.pushBlockMsg(&iv.Hash, c, waitChan)
 		case wire.InvTypeFactomDirBlock:
 			err = p.pushDirBlockMsg(&iv.Hash, c, waitChan)
-			/*
+
 				case wire.InvTypeFilteredBlock:
 					err = p.pushMerkleBlockMsg(&iv.Hash, c, waitChan)
-			*/
+
 		default:
 			peerLog.Warnf("Unknown type in inventory request %d",
 				iv.Type)
@@ -1065,7 +1063,7 @@ func (p *peer) handleGetBlocksMsg(msg *wire.MsgGetBlocks) {
 			}
 			p.QueueMessage(invMsg, nil)
 		}
-	*/
+
 }
 
 /*
@@ -1614,26 +1612,26 @@ out:
 			// it should probably be used to detect when something
 			// we requested needs to be re-requested from another
 			// peer.
-
-		case *wire.MsgGetData:
-			p.handleGetDataMsg(msg)
-			markConnected = true
-
-		case *wire.MsgGetBlocks:
-			p.handleGetBlocksMsg(msg)
-
 			/*
-				case *wire.MsgGetHeaders:
-					p.handleGetHeadersMsg(msg)
+				case *wire.MsgGetData:
+					p.handleGetDataMsg(msg)
+					markConnected = true
 
-				case *wire.MsgFilterAdd:
-					p.handleFilterAddMsg(msg)
+				case *wire.MsgGetBlocks:
+					p.handleGetBlocksMsg(msg)
 
-				case *wire.MsgFilterClear:
-					p.handleFilterClearMsg(msg)
 
-				case *wire.MsgFilterLoad:
-					p.handleFilterLoadMsg(msg)
+						case *wire.MsgGetHeaders:
+							p.handleGetHeadersMsg(msg)
+
+						case *wire.MsgFilterAdd:
+							p.handleFilterAddMsg(msg)
+
+						case *wire.MsgFilterClear:
+							p.handleFilterClearMsg(msg)
+
+						case *wire.MsgFilterLoad:
+							p.handleFilterLoadMsg(msg)
 			*/
 
 		case *wire.MsgReject:
@@ -1916,10 +1914,10 @@ out:
 				p.StatsMtx.Unlock()
 			case *wire.MsgMemPool:
 				// Should return an inv.
-			case *wire.MsgGetData:
-				// Should get us block, tx, or not found.
-			case *wire.MsgGetHeaders:
-				// Should get us headers back.
+			//case *wire.MsgGetData:
+			// Should get us block, tx, or not found.
+			//case *wire.MsgGetHeaders:
+			// Should get us headers back.
 			case *wire.MsgGetDirData:
 				// Should get us dir block, or not found for factom
 			default:

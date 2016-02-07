@@ -896,6 +896,7 @@ func (b *blockManager) haveInventory(invVect *wire.InvVect) (bool, error) {
 	return true, nil
 }
 
+/*
 // handleInvMsg handles inv messages from all peers.
 // We examine the inventory advertised by the remote peer and act accordingly.
 func (b *blockManager) handleInvMsg(imsg *invMsg) {
@@ -933,12 +934,11 @@ func (b *blockManager) handleInvMsg(imsg *invMsg) {
 		// for the peer.
 		imsg.peer.AddKnownInventory(iv)
 
-		/*
+
 			// Ignore inventory when we're in headers-first mode.
-			if b.headersFirstMode {
-				continue
-			}
-		*/
+			//if b.headersFirstMode {
+				//continue
+			//}
 
 		// Request the inventory if we don't already have it.
 		haveInv, err := b.haveInventory(iv)
@@ -954,7 +954,7 @@ func (b *blockManager) handleInvMsg(imsg *invMsg) {
 			continue
 		}
 
-		if iv.Type == wire.InvTypeBlock {
+		//if iv.Type == wire.InvTypeBlock {
 			// The block is an orphan block that we already have.
 			// When the existing orphan was processed, it requested
 			// the missing parent blocks.  When this scenario
@@ -965,7 +965,7 @@ func (b *blockManager) handleInvMsg(imsg *invMsg) {
 			// resending the orphan block as an available block
 			// to signal there are more missing blocks that need to
 			// be requested.
-			/*
+
 				if chain.IsKnownOrphan(&iv.Hash) {
 					// Request blocks starting at the latest known
 					// up to the root of the orphan that just came
@@ -993,8 +993,8 @@ func (b *blockManager) handleInvMsg(imsg *invMsg) {
 					locator := chain.BlockLocatorFromHash(&iv.Hash)
 					imsg.peer.PushGetBlocksMsg(locator, &zeroHash)
 				}
-			*/
-		}
+
+		//}
 	}
 
 	// Request as much as possible at once.  Anything that won't fit into
@@ -1047,7 +1047,7 @@ func (b *blockManager) handleInvMsg(imsg *invMsg) {
 	if len(gdmsg.InvList) > 0 {
 		imsg.peer.QueueMessage(gdmsg, nil)
 	}
-}
+}*/
 
 // blockHandler is the main handler for the block manager.  It must be run
 // as a goroutine.  It processes block and inv messages in a separate goroutine
@@ -1065,21 +1065,19 @@ out:
 			case *newPeerMsg:
 				b.handleNewPeerMsg(candidatePeers, msg.peer)
 
-			case *txMsg:
-				b.handleTxMsg(msg)
-				msg.peer.txProcessed <- struct{}{}
+			//case *txMsg:
+			//b.handleTxMsg(msg)
+			//msg.peer.txProcessed <- struct{}{}
 
-			case *blockMsg:
-				b.handleBlockMsg(msg)
-				msg.peer.blockProcessed <- struct{}{}
+			//case *blockMsg:
+			//b.handleBlockMsg(msg)
+			//msg.peer.blockProcessed <- struct{}{}
 
-			case *invMsg:
-				b.handleInvMsg(msg)
+			//case *invMsg:
+			//b.handleInvMsg(msg)
 
-				/*
-					case *headersMsg:
-						b.handleHeadersMsg(msg)
-				*/
+			//case *headersMsg:
+			//b.handleHeadersMsg(msg)
 
 			case *donePeerMsg:
 				b.handleDonePeerMsg(candidatePeers, msg.peer)

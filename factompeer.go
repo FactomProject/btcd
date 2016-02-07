@@ -7,12 +7,13 @@ package btcd
 import (
 	"encoding/hex"
 
+	"time"
+
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/btcd/blockchain"
 	"github.com/FactomProject/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
-	"time"
 )
 
 // handleFBlockMsg is invoked when a peer receives a factoid block message.
@@ -224,7 +225,7 @@ func (p *peer) handleGetNonDirDataMsg(msg *wire.MsgGetNonDirData) {
 			case hex.EncodeToString(common.ADMIN_CHAINID[:]):
 				err = p.pushABlockMsg(dbEntry.KeyMR, c, waitChan)
 
-			case wire.FChainID.String():
+			case hex.EncodeToString(common.FACTOID_CHAINID[:]): //wire.FChainID.String():
 				err = p.pushFBlockMsg(dbEntry.KeyMR, c, waitChan)
 
 			default:
