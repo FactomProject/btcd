@@ -25,6 +25,7 @@ import (
 	"github.com/FactomProject/go-socks/socks"
 	"github.com/davecgh/go-spew/spew"
 
+	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/util"
 )
 
@@ -33,11 +34,11 @@ var _ = util.Trace
 const (
 	// We need the version for webservices, and the limit should not be the version
 	// anyway.
-	ProtocolVersion = 1005 // version starts from 1000 for Factom 
-	
+	ProtocolVersion = 1005 // version starts from 1000 for Factom
+
 	// maxProtocolVersion is the max protocol version the peer supports.
 	maxProtocolVersion = ProtocolVersion
-	
+
 	// outputBufferSize is the number of elements the output channels use.
 	outputBufferSize = 50
 
@@ -67,7 +68,7 @@ const (
 var (
 	// userAgentName is the user agent name and is used to help identify
 	// ourselves to other bitcoin peers.
-	userAgentName = "btcd"
+	userAgentName = "factomd"
 
 	// userAgentVersion is the user agent version and is used to help
 	// identify ourselves to other bitcoin peers.
@@ -151,14 +152,22 @@ type outMsg struct {
 // peer contains several functions which are of the form pushX, that are used
 // to push messages to the peer.  Internally they use QueueMessage.
 type peer struct {
-	server             *server
-	btcnet             wire.BitcoinNet
-	started            int32
-	connected          int32
-	disconnect         int32 // only to be used atomically
-	conn               net.Conn
-	addr               string
-	na                 *wire.NetAddress
+	server     *server
+	btcnet     wire.BitcoinNet
+	started    int32
+	connected  int32
+	disconnect int32 // only to be used atomically
+	conn       net.Conn
+	addr       string
+	na         *wire.NetAddress
+
+	nodeType string
+	nodeID   *wire.ShaHash
+	nodeSig  common.Signature
+	isLeader bool
+	pubKey   common.PublicKey
+	privKey  common.PrivateKey
+
 	inbound            bool
 	persistent         bool
 	knownAddresses     map[string]struct{}
@@ -173,37 +182,38 @@ type peer struct {
 	prevGetHdrsStop    *wire.ShaHash // owned by blockmanager
 	requestQueue       []*wire.InvVect
 	//	filter             *bloom.Filter
-	relayMtx        sync.Mutex
-	disableRelayTx  bool
-	continueHash    *wire.ShaHash
-	outputQueue     chan outMsg
-	sendQueue       chan outMsg
-	sendDoneQueue   chan struct{}
-	queueWg         sync.WaitGroup // TODO(oga) wg -> single use channel?
-	outputInvChan   chan *wire.InvVect
-	txProcessed     chan struct{}
-	blockProcessed  chan struct{}
-	quit            chan struct{}
-	StatsMtx        sync.Mutex // protects all statistics below here.
-	versionKnown    bool
-	protocolVersion uint32
-	services        wire.ServiceFlag
-	timeConnected   time.Time
-	lastSend        time.Time
-	lastRecv        time.Time
-	bytesReceived   uint64
-	bytesSent       uint64
-	userAgent       string
-	lastBlock       int32
-	lastPingNonce   uint64    // Set to nonce if we have a pending ping.
-	lastPingTime    time.Time // Time we sent last ping.
-	lastPingMicros  int64     // Time for last ping to return.
+	relayMtx           sync.Mutex
+	disableRelayTx     bool
+	continueHash       *wire.ShaHash
+	outputQueue        chan outMsg
+	sendQueue          chan outMsg
+	sendDoneQueue      chan struct{}
+	queueWg            sync.WaitGroup // TODO(oga) wg -> single use channel?
+	outputInvChan      chan *wire.InvVect
+	txProcessed        chan struct{}
+	blockProcessed     chan struct{}
+	quit               chan struct{}
+	StatsMtx           sync.Mutex // protects all statistics below here.
+	versionKnown       bool
+	protocolVersion    uint32
+	services           wire.ServiceFlag
+	timeConnected      time.Time
+	lastSend           time.Time
+	lastRecv           time.Time
+	bytesReceived      uint64
+	bytesSent          uint64
+	userAgent          string
+	lastBlock          int32
+	lastAnnouncedBlock *wire.ShaHash
+	lastPingNonce      uint64    // Set to nonce if we have a pending ping.
+	lastPingTime       time.Time // Time we sent last ping.
+	lastPingMicros     int64     // Time for last ping to return.
 }
 
 // String returns the peer's address and directionality as a human-readable
 // string.
 func (p *peer) String() string {
-	return fmt.Sprintf("%s (%s)", p.addr, directionString(p.inbound))
+	return fmt.Sprintf("%s (%s); isLeader=%t; id=%s", p.addr, directionString(p.inbound), p.isLeader, p.nodeID.String())
 }
 
 // isKnownInventory returns whether or not the peer is known to have the passed
@@ -216,6 +226,27 @@ func (p *peer) isKnownInventory(invVect *wire.InvVect) bool {
 		return true
 	}
 	return false
+}
+
+// UpdateLastBlockHeight updates the last known block for the peer. It is safe
+// for concurrent access.
+func (p *peer) UpdateLastBlockHeight(newHeight int32) {
+	p.StatsMtx.Lock()
+	defer p.StatsMtx.Unlock()
+
+	peerLog.Tracef("Updating last block height of peer %v from %v to %v",
+		p.addr, p.lastBlock, newHeight)
+	p.lastBlock = int32(newHeight)
+}
+
+// UpdateLastAnnouncedBlock updates meta-data about the last block sha this
+// peer is known to have announced. It is safe for concurrent access.
+func (p *peer) UpdateLastAnnouncedBlock(blkSha *wire.ShaHash) {
+	p.StatsMtx.Lock()
+	defer p.StatsMtx.Unlock()
+
+	peerLog.Tracef("Updating last blk for peer %v, %v", p.addr, blkSha)
+	p.lastAnnouncedBlock = blkSha
 }
 
 // AddKnownInventory adds the passed inventory to the cache of known inventory
@@ -308,6 +339,11 @@ func (p *peer) pushVersionMsg() error {
 
 	// Advertise our max supported protocol version.
 	msg.ProtocolVersion = maxProtocolVersion
+
+	msg.NodeType = p.nodeType
+	msg.NodeID = p.nodeID.String()
+	msg.NodeSig = p.nodeSig
+	//msg.NodePubKey = p.pubKey.String()
 
 	p.QueueMessage(msg, nil)
 	return nil
@@ -432,6 +468,12 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 	p.relayMtx.Lock()
 	p.disableRelayTx = msg.DisableRelayTx
 	p.relayMtx.Unlock()
+
+	peerLog.Info("NodeType: ", msg.NodeType, ", NodeID: ", msg.NodeID, ", NodeSig: ", msg.NodeSig)
+	p.nodeType = msg.NodeType
+	p.nodeID, _ = wire.NewShaHashFromStr(msg.NodeID)
+	p.nodeSig = msg.NodeSig
+	p.pubKey = p.nodeSig.Pub
 
 	// Inbound connections.
 	if p.inbound {
@@ -2050,7 +2092,12 @@ func newPeerBase(s *server, inbound bool) *peer {
 		txProcessed:    make(chan struct{}, 1),
 		blockProcessed: make(chan struct{}, 1),
 		quit:           make(chan struct{}),
+		nodeType:       factomConfig.App.NodeMode,
 	}
+	h, _ := wire.NewShaHashFromStr(factomConfig.App.NodeMode)
+	p.nodeID = h
+	p.initServerKeys()
+	p.nodeSig = p.privKey.Sign(p.nodeID.Bytes())
 	return &p
 }
 
@@ -2155,4 +2202,22 @@ func isVersionMismatch(us, them int32) bool {
 	}
 
 	return false
+}
+
+func (p *peer) initServerKeys() {
+	if p.nodeType == common.SERVER_NODE {
+		serverPrivKey, err := common.NewPrivateKeyFromHex(factomConfig.App.ServerPrivKey)
+		if err != nil {
+			panic("Cannot parse Server Private Key from configuration file: " + err.Error())
+		}
+		p.privKey = serverPrivKey
+		p.pubKey = serverPrivKey.Pub
+	} else {
+		// ???
+		p.pubKey = common.PubKeyFromString(common.SERVER_PUB_KEY)
+	}
+}
+
+func (p *peer) SetIsLeader(l bool) {
+	p.isLeader = l
 }

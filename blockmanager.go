@@ -899,15 +899,13 @@ func (b *blockManager) haveInventory(invVect *wire.InvVect) (bool, error) {
 // handleInvMsg handles inv messages from all peers.
 // We examine the inventory advertised by the remote peer and act accordingly.
 func (b *blockManager) handleInvMsg(imsg *invMsg) {
-	/*
-		// Ignore invs from peers that aren't the sync if we are not current.
-		// Helps prevent fetching a mass of orphans.
+	// Ignore invs from peers that aren't the sync if we are not current.
+	// Helps prevent fetching a mass of orphans.
 
-		// Note: For factom related invMsg, we should bypass b.current()
-		if imsg.peer != b.syncPeer && !b.current() {
-			return
-		}
-	*/
+	// Note: For factom related invMsg, we should bypass b.current()
+	if imsg.peer != b.syncPeer && !b.current() {
+		return
+	}
 
 	// Attempt to find the final block in the inventory list.  There may
 	// not be one.

@@ -14,8 +14,10 @@ import (
 	//	"github.com/FactomProject/btcd/chaincfg"
 	//	"github.com/FactomProject/btcutil"
 
+	"github.com/FactomProject/FactomCode/common"
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
+	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/wire"
 )
 
@@ -23,7 +25,8 @@ var _ = fmt.Printf
 
 var (
 	local_Server *server
-	db           database.Db              // database
+	db           database.Db // database
+	factomConfig *util.FactomdConfig
 	inMsgQueue   chan wire.FtmInternalMsg //incoming message queue for factom application messages
 	outMsgQueue  chan wire.FtmInternalMsg //outgoing message queue for factom application messages
 
@@ -137,12 +140,16 @@ func Start_btcd(
 	outMsgQ chan wire.FtmInternalMsg,
 	inCtlMsgQ chan wire.FtmInternalMsg,
 	outCtlMsgQ chan wire.FtmInternalMsg,
-	user, pass string, clientMode bool) {
+	fcfg *util.FactomdConfig) {
+	//	user, pass string, clientMode bool) {
 
-	factomdUser = user
-	factomdPass = pass
+	//factomdUser = user
+	//factomdPass = pass
 
-	ClientOnly = clientMode
+	factomConfig = fcfg
+	if common.SERVER_NODE != fcfg.App.NodeMode {
+		ClientOnly = true
+	}
 
 	if ClientOnly {
 		cp.CP.AddUpdate(

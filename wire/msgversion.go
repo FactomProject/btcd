@@ -11,6 +11,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/FactomProject/FactomCode/common"
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
@@ -56,6 +58,15 @@ type MsgVersion struct {
 
 	// Don't announce transactions to peer.
 	DisableRelayTx bool
+
+	// NodeType is one of SERVER, FULL, LIGHT
+	NodeType string
+
+	// NodeID is a 32-bit hash uniquely representing a node in factom network
+	NodeID string
+
+	// NodeSig is the signature of its ID and can be verified by other peers
+	NodeSig common.Signature
 }
 
 // HasService returns whether the specified service is supported by the peer
@@ -149,6 +160,31 @@ func (msg *MsgVersion) BtcDecode(r io.Reader, pver uint32) error {
 		msg.DisableRelayTx = !relayTx
 	}
 
+	if buf.Len() > 0 {
+		nodeType, err := readVarString(buf, pver)
+		if err != nil {
+			return err
+		}
+		msg.NodeType = nodeType
+	}
+
+	if buf.Len() > 0 {
+		nodeID, err := readVarString(buf, pver)
+		if err != nil {
+			return err
+		}
+		msg.NodeID = nodeID
+	}
+
+	if buf.Len() > 0 {
+		err = readElement(buf, &msg.NodeSig)
+		//nodeSig, err := readVarString(buf, pver)
+		if err != nil {
+			return err
+		}
+		//msg.NodeSig = nodeSig
+	}
+
 	return nil
 }
 
@@ -200,6 +236,22 @@ func (msg *MsgVersion) BtcEncode(w io.Writer, pver uint32) error {
 			return err
 		}
 	}
+
+	err = writeVarString(w, pver, msg.NodeType)
+	if err != nil {
+		return err
+	}
+
+	err = writeVarString(w, pver, msg.NodeID)
+	if err != nil {
+		return err
+	}
+
+	err = writeElement(w, msg.NodeSig)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

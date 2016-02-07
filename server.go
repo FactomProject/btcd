@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/btcd/addrmgr"
 	//	"github.com/FactomProject/btcd/blockchain"
 	"github.com/FactomProject/btcd/btcjson"
@@ -74,6 +75,18 @@ type relayMsg struct {
 	data    interface{}
 }
 
+// updatePeerHeightsMsg is a message sent from the blockmanager to the server
+// after a new block has been accepted. The purpose of the message is to update
+// the heights of peers that were known to announce the block before we
+// connected it to the main chain or recognized it as an orphan. With these
+// updates, peer heights will be kept up to date, allowing for fresh data when
+// selecting sync peer candidacy.
+type updatePeerHeightsMsg struct {
+	newSha     *wire.ShaHash
+	newHeight  int32
+	originPeer *peer
+}
+
 // server provides a bitcoin server for handling communications to and from
 // bitcoin peers.
 type server struct {
@@ -87,8 +100,8 @@ type server struct {
 	bytesReceived uint64     // Total bytes received from all peers since start.
 	bytesSent     uint64     // Total bytes sent by all peers since start.
 	addrManager   *addrmgr.AddrManager
-	rpcServer     *rpcServer
-	blockManager  *blockManager
+	//rpcServer     *rpcServer
+	blockManager *blockManager
 	//	addrIndexer  *addrIndexer
 	//	txMemPool *txMemPool
 	//	cpuMiner             *CPUMiner
@@ -100,11 +113,13 @@ type server struct {
 	query                chan interface{}
 	relayInv             chan relayMsg
 	broadcast            chan broadcastMsg
+	peerHeightsUpdate    chan updatePeerHeightsMsg
 	wg                   sync.WaitGroup
 	quit                 chan struct{}
 	nat                  NAT
 	//	db                   database.Db
 	//	timeSource blockchain.MedianTimeSource
+	leaderPeer *peer
 }
 
 type peerState struct {
@@ -114,6 +129,7 @@ type peerState struct {
 	banned           map[string]time.Time
 	outboundGroups   map[string]int
 	maxOutboundPeers int
+	federateServers  *list.List
 }
 
 // randomUint16Number returns a random uint16 in a specified input range.  Note
@@ -164,6 +180,10 @@ func (p *peerState) OutboundCount() int {
 	return p.outboundPeers.Len() + p.persistentPeers.Len()
 }
 
+func (p *peerState) FederateCount() int {
+	return p.federateServers.Len()
+}
+
 func (p *peerState) NeedMoreOutbound() bool {
 	return p.OutboundCount() < p.maxOutboundPeers &&
 		p.Count() < cfg.MaxPeers
@@ -187,6 +207,37 @@ func (p *peerState) forAllPeers(closure func(p *peer)) {
 		closure(e.Value.(*peer))
 	}
 	p.forAllOutboundPeers(closure)
+}
+
+// handleUpdatePeerHeight updates the heights of all peers who were known to
+// announce a block we recently accepted.
+func (s *server) handleUpdatePeerHeights(state *peerState, umsg updatePeerHeightsMsg) {
+	state.forAllPeers(func(p *peer) {
+		// The origin peer should already have the updated height.
+		if p == umsg.originPeer {
+			return
+		}
+
+		// Skip this peer if it hasn't recently announced any new blocks.
+		p.StatsMtx.Lock()
+		if p.lastAnnouncedBlock == nil {
+			p.StatsMtx.Unlock()
+			return
+		}
+
+		// This is a pointer to the underlying memory which doesn't
+		// change.
+		latestBlkSha := p.lastAnnouncedBlock
+		p.StatsMtx.Unlock()
+
+		// If the peer has recently announced a block, and this block
+		// matches our newly accepted block, then update their block
+		// height.
+		if *latestBlkSha == *umsg.newSha {
+			p.UpdateLastBlockHeight(umsg.newHeight)
+			p.UpdateLastAnnouncedBlock(nil)
+		}
+	})
 }
 
 // handleAddPeerMsg deals with adding new peers.  It is invoked from the
@@ -256,6 +307,20 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 		}
 	}
 
+	if common.SERVER_NODE == factomConfig.App.NodeMode &&
+		p.pubKey.Verify(p.nodeID.Bytes(), p.nodeSig.Sig) {
+		srvrLog.Debugf("New federate server: %s", p)
+		state.federateServers.PushBack(p)
+		if state.FederateCount() == 1 {
+			p.SetIsLeader(true)
+			s.SetLeaderPeer(p)
+		}
+	}
+
+	return true
+}
+
+func (s *server) validateFederateServer(state *peerState, p *peer) bool {
 	return true
 }
 
@@ -283,6 +348,15 @@ func (s *server) handleDonePeerMsg(state *peerState, p *peer) {
 			}
 			list.Remove(e)
 			srvrLog.Debugf("Removed peer %s", p)
+			break
+			//return
+		}
+	}
+	list = state.federateServers
+	for e := list.Front(); e != nil; e = e.Next() {
+		if e.Value == p {
+			list.Remove(e)
+			srvrLog.Debugf("Removed federate server %s", p)
 			return
 		}
 	}
@@ -302,7 +376,7 @@ func (s *server) handleBanPeerMsg(state *peerState, p *peer) {
 	srvrLog.Infof("Banned peer %s (%s) for %v", host, direction,
 		cfg.BanDuration)
 	state.banned[host] = time.Now().Add(cfg.BanDuration)
-
+	// handle federate server ?
 }
 
 // handleRelayInvMsg deals with relaying inventory to peers that are not already
@@ -589,6 +663,7 @@ func (s *server) peerHandler() {
 		peers:            list.New(),
 		persistentPeers:  list.New(),
 		outboundPeers:    list.New(),
+		federateServers:  list.New(),
 		banned:           make(map[string]time.Time),
 		maxOutboundPeers: defaultMaxOutbound,
 		outboundGroups:   make(map[string]int),
@@ -850,6 +925,18 @@ func (s *server) NetTotals() (uint64, uint64) {
 	return s.bytesReceived, s.bytesSent
 }
 
+// UpdatePeerHeights updates the heights of all peers who have have announced
+// the latest connected main chain block, or a recognized orphan. These height
+// updates allow us to dynamically refresh peer heights, ensuring sync peer
+// selection has access to the latest block heights for each peer.
+func (s *server) UpdatePeerHeights(latestBlkSha *wire.ShaHash, latestHeight int32, updateSource *peer) {
+	s.peerHeightsUpdate <- updatePeerHeightsMsg{
+		newSha:     latestBlkSha,
+		newHeight:  latestHeight,
+		originPeer: updateSource,
+	}
+}
+
 // rebroadcastHandler keeps track of user submitted inventories that we have
 // sent out but have not yet made it into a block. We periodically rebroadcast
 // them in case our peers restarted or otherwise lost track of them.
@@ -977,14 +1064,14 @@ func (s *server) Stop() error {
 	}
 
 	/*
-		// Stop the CPU miner if needed
-		s.cpuMiner.Stop()
-	*/
+			// Stop the CPU miner if needed
+			s.cpuMiner.Stop()
 
-	// Shutdown the RPC server if it's not disabled.
-	if !cfg.DisableRPC {
-		s.rpcServer.Stop()
-	}
+
+		// Shutdown the RPC server if it's not disabled.
+		if !cfg.DisableRPC {
+			s.rpcServer.Stop()
+		}*/
 
 	// Signal the remaining goroutines to quit.
 	close(s.quit)
@@ -1289,6 +1376,7 @@ func newServer(listenAddrs []string, chainParams *chaincfg.Params) (*server, err
 		broadcast:            make(chan broadcastMsg, cfg.MaxPeers),
 		quit:                 make(chan struct{}),
 		modifyRebroadcastInv: make(chan interface{}),
+		peerHeightsUpdate:    make(chan updatePeerHeightsMsg),
 		nat:                  nat,
 		//		db:                   db,
 		//		timeSource: blockchain.NewMedianTime(),
@@ -1345,4 +1433,8 @@ func dynamicTickDuration(remaining time.Duration) time.Duration {
 
 func (s *server) SyncPeer() *peer {
 	return s.blockManager.syncPeer
+}
+
+func (s *server) SetLeaderPeer(p *peer) {
+	s.leaderPeer = p
 }
