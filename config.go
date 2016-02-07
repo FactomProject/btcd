@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"os/user"	
 
 	//	"github.com/FactomProject/btcd/database"
 	//	_ "github.com/FactomProject/btcd/database/ldb"
@@ -31,7 +31,7 @@ const (
 	//	defaultDataDirname       = "data"
 	defaultLogLevel    = "info"
 	defaultLogDirname  = ""
-	defaultLogFilename = "factom-d.log"
+	defaultLogFilename = "btcd.log"
 	//	defaultMaxPeers          = 125
 	// defaultMaxPeers          = 10
 	defaultMaxPeers = 125
