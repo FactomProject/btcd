@@ -149,42 +149,52 @@ func (msg *MsgVersion) BtcDecode(r io.Reader, pver uint32) error {
 	// There was no relay transactions field before BIP0037Version, but
 	// the default behavior prior to the addition of the field was to always
 	// relay transactions.
-	if buf.Len() > 0 {
-		// It's safe to ignore the error here since the buffer has at
-		// least one byte and that byte will result in a boolean value
-		// regardless of its value.  Also, the wire encoding for the
-		// field is true when transactions should be relayed, so reverse
-		// it for the DisableRelayTx field.
-		var relayTx bool
-		readElement(r, &relayTx)
-		msg.DisableRelayTx = !relayTx
-	}
+	/*	fmt.Println("buf.len=", buf.Len())
+		if buf.Len() > 0 {
+			// It's safe to ignore the error here since the buffer has at
+			// least one byte and that byte will result in a boolean value
+			// regardless of its value.  Also, the wire encoding for the
+			// field is true when transactions should be relayed, so reverse
+			// it for the DisableRelayTx field.
+			var relayTx bool
+			//readElement(r, &relayTx)
+			err = readElement(buf, &relayTx)
+			if err != nil {
+				return err
+			}
+			msg.DisableRelayTx = !relayTx
+			fmt.Println("** after reading: msg.DisableRelayTx=", msg.DisableRelayTx)
+		}*/
 
+	fmt.Println("buf.len=", buf.Len())
 	if buf.Len() > 0 {
 		nodeType, err := readVarString(buf, pver)
+		fmt.Println("** after reading: ", nodeType)
 		if err != nil {
 			return err
 		}
 		msg.NodeType = nodeType
 	}
 
+	fmt.Println("buf.len=", buf.Len())
 	if buf.Len() > 0 {
 		nodeID, err := readVarString(buf, pver)
+		fmt.Println("** after reading: ", nodeID)
 		if err != nil {
 			return err
 		}
 		msg.NodeID = nodeID
 	}
-
-	if buf.Len() > 0 {
-		err = readElement(buf, &msg.NodeSig)
-		//nodeSig, err := readVarString(buf, pver)
-		if err != nil {
-			return err
+	/*
+		if buf.Len() > 0 {
+			err = readElement(buf, &msg.NodeSig)
+			//nodeSig, err := readVarString(buf, pver)
+			if err != nil {
+				return err
+			}
+			//msg.NodeSig = nodeSig
 		}
-		//msg.NodeSig = nodeSig
-	}
-
+	*/
 	return nil
 }
 
@@ -230,29 +240,31 @@ func (msg *MsgVersion) BtcEncode(w io.Writer, pver uint32) error {
 	// There was no relay transactions field before BIP0037Version.  Also,
 	// the wire encoding for the field is true when transactions should be
 	// relayed, so reverse it from the DisableRelayTx field.
-	if pver >= BIP0037Version {
-		err = writeElement(w, !msg.DisableRelayTx)
-		if err != nil {
-			return err
-		}
-	}
+	//if pver >= BIP0037Version {
+	//err = writeElement(w, !msg.DisableRelayTx)
+	//if err != nil {
+	//return err
+	//}
+	//}
 
 	err = writeVarString(w, pver, msg.NodeType)
+	fmt.Println("after writing: ", msg.NodeType)
 	if err != nil {
 		return err
 	}
 
 	err = writeVarString(w, pver, msg.NodeID)
+	fmt.Println("after writing: ", msg.NodeID)
 	if err != nil {
 		return err
 	}
-
-	err = writeElement(w, msg.NodeSig)
-	//err = writeVarString(w, pver, msg.NodeSig)
-	if err != nil {
-		return err
-	}
-
+	/*
+		err = writeElement(w, msg.NodeSig)
+		//err = writeVarString(w, pver, msg.NodeSig)
+		if err != nil {
+			return err
+		}
+	*/
 	return nil
 }
 
@@ -272,7 +284,7 @@ func (msg *MsgVersion) MaxPayloadLength(pver uint32) uint32 {
 	// agent (varInt) + max allowed useragent length + last block 4 bytes +
 	// relay transactions flag 1 byte.
 	return 33 + (maxNetAddressPayload(pver) * 2) + MaxVarIntPayload +
-		MaxUserAgentLen
+		MaxUserAgentLen + 64
 }
 
 // NewMsgVersion returns a new bitcoin version message that conforms to the
@@ -293,6 +305,8 @@ func NewMsgVersion(me *NetAddress, you *NetAddress, nonce uint64,
 		UserAgent:       DefaultUserAgent,
 		LastBlock:       lastBlock,
 		DisableRelayTx:  false,
+		NodeType:        "SERVER",
+		NodeID:          "SERVER_A",
 	}
 }
 

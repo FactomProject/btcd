@@ -418,6 +418,7 @@ func (a *AddrManager) savePeers() {
 // loadPeers loads the known address from the saved file.  If empty, missing, or
 // malformed file, just don't load anything and start fresh
 func (a *AddrManager) loadPeers() {
+	log.Infof("AddrManager.loadPeers: ", a.peersFile)
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 
@@ -550,8 +551,8 @@ func (a *AddrManager) Start() {
 
 	// Load peers we already know about from file.
 	// TODO: Milestone2 -- must ENABLE, FIXME
-	fmt.Println("peers.json is disabled for Milestone1")
-	// a.loadPeers()
+	//fmt.Println("peers.json is disabled for Milestone1")
+	a.loadPeers()
 
 	// Start the address ticker to save addresses periodically.
 	a.wg.Add(1)

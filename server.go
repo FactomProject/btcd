@@ -321,7 +321,7 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 	srvrLog.Debugf("New peer %s", p)
 	if p.inbound {
 		state.peers.PushBack(p)
-		srvrLog.Infof("inbound peer: %s, total=%d", p, state.peers.Len())
+		srvrLog.Infof("inbound peer: %s, state.peers.Len=%d", p, state.peers.Len())
 		p.Start()
 		// how about more than one inbound peer ???
 		p.server.federateServers.PushBack(p)
@@ -340,9 +340,9 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 	return true
 }
 
-func (s *server) validateFederateServer(state *peerState, p *peer) bool {
-	return true
-}
+//func (s *server) validateFederateServer(state *peerState, p *peer) bool {
+//return true
+//}
 
 // handleDonePeerMsg deals with peers that have signalled they are done.  It is
 // invoked from the peerHandler goroutine.

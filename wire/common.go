@@ -23,7 +23,7 @@ const MaxVarIntPayload = 9
 // depending on the concrete type of element pointed to.
 func readElement(r io.Reader, element interface{}) error {
 	var scratch [8]byte
-	fmt.Println("readElement: ", spew.Sdump(element))
+	//fmt.Println("readElement: ", spew.Sdump(element))
 	// Attempt to read the element based on the concrete type via fast
 	// type assertions first.
 	switch e := element.(type) {
@@ -186,6 +186,7 @@ func readElements(r io.Reader, elements ...interface{}) error {
 // except for bytes and strings, which are just written out.
 func writeElement(w io.Writer, element interface{}) error {
 	var scratch [8]byte
+	//fmt.Println("writeElement: ", spew.Sdump(element))
 
 	// Attempt to write the element based on the concrete type via fast
 	// type assertions first.
