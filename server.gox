@@ -22,9 +22,14 @@ import (
 
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/btcd/addrmgr"
-	"github.com/FactomProject/btcd/chaincfg"
-	"github.com/FactomProject/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
+	//	"github.com/FactomProject/btcd/blockchain"
+	//"github.com/FactomProject/btcd/btcjson"
+	"github.com/FactomProject/btcd/chaincfg"
+	//	"github.com/FactomProject/btcd/database"
+	"github.com/FactomProject/btcd/wire"
+
+	//	"github.com/FactomProject/btcutil"
 )
 
 const (
@@ -138,12 +143,13 @@ type server struct {
 	nat                  NAT
 	//	db                   database.Db
 	//	timeSource blockchain.MedianTimeSource
-	nodeType        string
-	nodeID          string
-	privKey         common.PrivateKey
-	leaderPeer      *peer
-	isLeader        bool
-	federateServers *list.List
+	nodeType   string
+	nodeID     string //*wire.ShaHash
+	nodeSig    common.Signature
+	pubKey     common.PublicKey
+	privKey    common.PrivateKey
+	leaderPeer *peer
+	isLeader   bool
 }
 
 type peerState struct {
@@ -153,7 +159,7 @@ type peerState struct {
 	banned           map[string]time.Time
 	outboundGroups   map[string]int
 	maxOutboundPeers int
-	//federateServers  *list.List
+	federateServers  *list.List
 }
 
 // randomUint16Number returns a random uint16 in a specified input range.  Note
@@ -204,9 +210,9 @@ func (p *peerState) OutboundCount() int {
 	return p.outboundPeers.Len() + p.persistentPeers.Len()
 }
 
-//func (p *peerState) FederateCount() int {
-//return p.federateServers.Len()
-//}
+func (p *peerState) FederateCount() int {
+	return p.federateServers.Len()
+}
 
 func (p *peerState) NeedMoreOutbound() bool {
 	return p.OutboundCount() < p.maxOutboundPeers &&
@@ -323,9 +329,6 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 		state.peers.PushBack(p)
 		srvrLog.Infof("inbound peer: %s, total=%d", p, state.peers.Len())
 		p.Start()
-		// how about more than one inbound peer ???
-		p.server.federateServers.PushBack(p)
-		srvrLog.Debugf("Inbound peer as a new federate server: %s, total=%d", p, p.server.federateServers.Len())
 	} else {
 		state.outboundGroups[addrmgr.GroupKey(p.na)]++
 		if p.persistent {
@@ -336,6 +339,16 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 			srvrLog.Infof("outbound peer: %s, total=%d", p, state.outboundPeers.Len())
 		}
 	}
+	/*
+		if common.SERVER_NODE == factomConfig.App.NodeMode &&
+			p.pubKey.Verify([]byte(p.nodeID), p.nodeSig.Sig) {
+			srvrLog.Debugf("New federate server: %s", p)
+			state.federateServers.PushBack(p)
+			if state.FederateCount() == 1 {
+				p.SetIsLeader(true)
+				s.SetLeaderPeer(p)
+			}
+		}*/
 
 	return true
 }
@@ -372,7 +385,7 @@ func (s *server) handleDonePeerMsg(state *peerState, p *peer) {
 			//return
 		}
 	}
-	list = s.federateServers
+	list = state.federateServers
 	for e := list.Front(); e != nil; e = e.Next() {
 		if e.Value == p {
 			list.Remove(e)
@@ -686,6 +699,7 @@ func (s *server) peerHandler() {
 		peers:            list.New(),
 		persistentPeers:  list.New(),
 		outboundPeers:    list.New(),
+		federateServers:  list.New(),
 		banned:           make(map[string]time.Time),
 		maxOutboundPeers: defaultMaxOutbound,
 		outboundGroups:   make(map[string]int),
@@ -1404,7 +1418,6 @@ func newServer(listenAddrs []string, chainParams *chaincfg.Params) (*server, err
 		modifyRebroadcastInv: make(chan interface{}),
 		peerHeightsUpdate:    make(chan updatePeerHeightsMsg),
 		nat:                  nat,
-		federateServers:      list.New(),
 		//		db:                   db,
 		//		timeSource: blockchain.NewMedianTime(),
 	}
@@ -1420,7 +1433,7 @@ func newServer(listenAddrs []string, chainParams *chaincfg.Params) (*server, err
 	s.isLeader = factomConfig.App.InitLeader
 	s.nodeID = factomConfig.App.NodeID
 	s.initServerKeys()
-	//s.nodeSig = s.privKey.Sign([]byte(s.nodeID))
+	s.nodeSig = s.privKey.Sign([]byte(s.nodeID))
 
 	/*
 			if cfg.AddrIndex {
@@ -1487,7 +1500,7 @@ func (s *server) initServerKeys() {
 			panic("Cannot parse Server Private Key from configuration file: " + err.Error())
 		}
 		s.privKey = serverPrivKey
-		//s.pubKey = serverPrivKey.Pub
+		s.pubKey = serverPrivKey.Pub
 		//} else {
 		// This pubkey should always come from serverPrivKey or ProtocolVersion
 		// communicate through MsgVersion ???

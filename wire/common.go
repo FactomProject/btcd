@@ -11,7 +11,9 @@ import (
 	"io"
 	"math"
 
+	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/fastsha256"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // Maximum payload size for a variable length integer.
@@ -21,10 +23,22 @@ const MaxVarIntPayload = 9
 // depending on the concrete type of element pointed to.
 func readElement(r io.Reader, element interface{}) error {
 	var scratch [8]byte
-
+	fmt.Println("readElement: ", spew.Sdump(element))
 	// Attempt to read the element based on the concrete type via fast
 	// type assertions first.
 	switch e := element.(type) {
+	case common.Signature:
+		fmt.Println("readElement, Signature: ")
+		var data [96]byte
+		_, err := io.ReadFull(r, data[:])
+		if err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		e = common.UnmarshalBinarySignature(data[:])
+		fmt.Println("sig=", spew.Sdump(e))
+		return nil
+
 	case *int32:
 		b := scratch[0:4]
 		_, err := io.ReadFull(r, b)
@@ -176,6 +190,17 @@ func writeElement(w io.Writer, element interface{}) error {
 	// Attempt to write the element based on the concrete type via fast
 	// type assertions first.
 	switch e := element.(type) {
+	case common.Signature:
+		fmt.Println("writeElement - Signature")
+		data := common.MarshalBinarySignature(common.Signature(e))
+		_, err := w.Write(data[:])
+		if err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		fmt.Println("writeElement - data: ", data)
+		return nil
+
 	case int32:
 		b := scratch[0:4]
 		binary.BigEndian.PutUint32(b, uint32(e))

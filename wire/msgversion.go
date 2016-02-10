@@ -248,6 +248,7 @@ func (msg *MsgVersion) BtcEncode(w io.Writer, pver uint32) error {
 	}
 
 	err = writeElement(w, msg.NodeSig)
+	//err = writeVarString(w, pver, msg.NodeSig)
 	if err != nil {
 		return err
 	}
