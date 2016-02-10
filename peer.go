@@ -73,8 +73,8 @@ var (
 	userAgentVersion = fmt.Sprintf("%d.%d.%d", appMajor, appMinor, appPatch)
 )
 
-// zeroHash is the zero value hash (all zeros).  It is defined as a convenience.
-var zeroHash wire.ShaHash
+// zeroBtcHash is the zero value hash (all zeros).  It is defined as a convenience.
+var zeroBtcHash wire.ShaHash
 
 // minUint32 is a helper function to return the minimum of two uint32s.
 // This avoids a math import and the need to cast to floats.
@@ -551,7 +551,7 @@ func (p *peer) PushRejectMsg(command string, code wire.RejectCode, reason string
 			peerLog.Warnf("Sending a reject message for command "+
 				"type %v which should have specified a hash "+
 				"but does not", command)
-			hash = &zeroHash
+			hash = &zeroBtcHash
 		}
 		msg.Hash = *hash
 	}*/

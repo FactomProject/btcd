@@ -24,7 +24,7 @@ import (
 var _ = fmt.Printf
 
 var (
-	local_Server *server
+	localServer  *server
 	db           database.Db // database
 	factomConfig *util.FactomdConfig
 	inMsgQueue   chan wire.FtmInternalMsg //incoming message queue for factom application messages
@@ -40,7 +40,7 @@ func factomForkInit(s *server) {
 	// tweak some config options
 	cfg.DisableCheckpoints = true
 
-	local_Server = s // local copy of our server pointer
+	localServer = s // local copy of our server pointer
 
 	// Write outgoing factom messages into P2P network
 	go func() {
@@ -134,17 +134,19 @@ func factomForkInit(s *server) {
 	}()
 }
 
+/*
 func Start_btcd(
 	ldb database.Db,
 	inMsgQ chan wire.FtmInternalMsg,
 	outMsgQ chan wire.FtmInternalMsg,
 	inCtlMsgQ chan wire.FtmInternalMsg,
 	outCtlMsgQ chan wire.FtmInternalMsg,
-	fcfg *util.FactomdConfig) {
-	//	user, pass string, clientMode bool) {
+	fcfg *util.FactomdConfig) { */
+//	user, pass string, clientMode bool) {
 
-	//factomdUser = user
-	//factomdPass = pass
+//factomdUser = user
+//factomdPass = pass
+func Start_btcd(fcfg *util.FactomdConfig) {
 
 	factomConfig = fcfg
 	if common.SERVER_NODE != fcfg.App.NodeMode {
@@ -169,14 +171,13 @@ func Start_btcd(
 		fmt.Println("\n\n>>>>>>>>>>>>>>>>>  SERVER MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
 	}
 
-	db = ldb
-
-	inMsgQueue = inMsgQ
-	outMsgQueue = outMsgQ
-
-	inCtlMsgQueue = inCtlMsgQ
-	outCtlMsgQueue = outCtlMsgQ
-
+	/*
+		db = ldb
+		inMsgQueue = inMsgQ
+		outMsgQueue = outMsgQ
+		inCtlMsgQueue = inCtlMsgQ
+		outCtlMsgQueue = outCtlMsgQ
+	*/
 	// Use all processor cores.
 	//runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -270,7 +271,7 @@ func (p *peer) FactomRelay(msg wire.Message) {
 	// broadcast/relay only if hadn't been done for this peer
 	if p.shallRelay(msg) {
 		//		p.server.BroadcastMessage(msg, p)
-		local_Server.BroadcastMessage(msg)
+		localServer.BroadcastMessage(msg)
 	}
 }
 

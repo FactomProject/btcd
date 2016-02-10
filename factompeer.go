@@ -342,7 +342,7 @@ func (p *peer) handleGetDirBlocksMsg(msg *wire.MsgGetDirBlocks) {
 	// no stop hash was specified.
 	// Attempt to find the ending index of the stop hash if specified.
 	endIdx := database.AllShas //factom db
-	if !msg.HashStop.IsEqual(&zeroHash) {
+	if !msg.HashStop.IsEqual(&zeroBtcHash) {
 		height, err := db.FetchBlockHeightBySha(&msg.HashStop)
 		if err == nil {
 			endIdx = height + 1

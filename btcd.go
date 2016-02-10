@@ -68,14 +68,6 @@ func btcdMain(serverChan chan<- *server) error {
 	}
 
 	/*
-		// Perform upgrades to btcd as new versions require it.
-		if err := doUpgrades(); err != nil {
-			btcdLog.Errorf("%v", err)
-			return err
-		}
-	*/
-
-	/*
 			// Load the block database.
 			db, err := loadBlockDB()
 			if err != nil {
@@ -90,19 +82,6 @@ func btcdMain(serverChan chan<- *server) error {
 		// Will be taken out once https://github.com/FactomProject/WorkItems/issues/325 is implemented.
 		if !chaincfg.MainNetParams.GenesisHash.IsEqual(gensha) {
 			panic(errors.New(fmt.Sprintf("Factoid genesis block hash ERROR, after loadBlockDB")))
-		}
-	*/
-
-	/*
-		if cfg.DropAddrIndex {
-			btcdLog.Info("Deleting entire addrindex.")
-			err := db.DeleteAddrIndex()
-			if err != nil {
-				btcdLog.Errorf("Unable to delete the addrindex: %v", err)
-				return err
-			}
-			btcdLog.Info("Successfully deleted addrindex, exiting")
-			return nil
 		}
 	*/
 

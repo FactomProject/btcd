@@ -24,6 +24,7 @@ import (
 	"github.com/FactomProject/btcd/addrmgr"
 	"github.com/FactomProject/btcd/chaincfg"
 	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/factomd/util"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -848,8 +849,8 @@ out:
 func (s *server) AddPeer(p *peer) {
 	s.newPeers <- p
 
-	//	count := s.ConnectedCount()
-	//	util.Trace(fmt.Sprintf("ConnectedCount()= %d", count))
+	count := s.ConnectedCount()
+	util.Trace(fmt.Sprintf("ConnectedCount()= %d", count))
 }
 
 // BanPeer bans a peer that has already been connected to the server by ip.

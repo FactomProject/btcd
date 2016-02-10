@@ -78,7 +78,7 @@ func LatestDirBlockLocator() (blockchain.BlockLocator, error) {
 	latestDirBlockHash, _, _ := db.FetchBlockHeightCache()
 
 	if latestDirBlockHash == nil {
-		latestDirBlockHash = &zeroHash
+		latestDirBlockHash = &zeroBtcHash
 	}
 
 	// The best chain is set, so use its hash.

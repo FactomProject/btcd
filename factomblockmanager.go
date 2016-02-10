@@ -7,12 +7,13 @@ package btcd
 import (
 	"container/list"
 	"fmt"
+	"sync/atomic"
+
 	"github.com/FactomProject/FactomCode/common"
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
-	"sync/atomic"
 )
 
 // dirBlockMsg packages a directory block message and the peer it came from together
@@ -93,7 +94,7 @@ func (b *blockManager) handleDirInvMsg(imsg *dirInvMsg) {
 				// stop hash).
 				bmgrLog.Debug("push for more dir blocks: PushGetDirBlocksMsg")
 				locator := DirBlockLocatorFromHash(&iv.Hash)
-				imsg.peer.PushGetDirBlocksMsg(locator, &zeroHash)
+				imsg.peer.PushGetDirBlocksMsg(locator, &zeroBtcHash)
 			}
 		}
 	}
@@ -169,6 +170,7 @@ func (b *blockManager) QueueDirInv(inv *wire.MsgDirInv, p *peer) {
 func (b *blockManager) startSyncFactom(peers *list.List) {
 	// Return now if we're already syncing.
 	if b.syncPeer != nil {
+		bmgrLog.Info("syncPeer: ", b.syncPeer)
 		return
 	}
 
@@ -202,6 +204,7 @@ func (b *blockManager) startSyncFactom(peers *list.List) {
 		// For now, just pick the first available candidate.
 		bestPeer = p
 	}
+	bmgrLog.Info("bestPeer: ", bestPeer)
 
 	// Start syncing from the best peer if one was selected.
 	if bestPeer != nil {
@@ -225,8 +228,10 @@ func (b *blockManager) startSyncFactom(peers *list.List) {
 			str, // Message
 			60)
 
-		bestPeer.PushGetDirBlocksMsg(locator, &zeroHash)
+		bestPeer.PushGetDirBlocksMsg(locator, &zeroBtcHash)
 		b.syncPeer = bestPeer
+		blockSyncing = true
+		bmgrLog.Infof("blockSyncing=%t", blockSyncing)
 	} else {
 		bmgrLog.Warnf("No sync peer candidates available")
 	}
