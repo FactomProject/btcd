@@ -68,15 +68,6 @@ type invMsg struct {
 	peer *peer
 }
 
-/*
-// headersMsg packages a bitcoin headers message and the peer it came from
-// together so the block handler has access to that information.
-type headersMsg struct {
-	headers *wire.MsgHeaders
-	peer    *peer
-}
-*/
-
 // donePeerMsg signifies a newly disconnected peer to the block handler.
 type donePeerMsg struct {
 	peer *peer
@@ -215,19 +206,6 @@ func (b *blockManager) handleNewPeerMsg(peers *list.List, p *peer) {
 
 	bmgrLog.Infof("New valid peer %s (%s)", p, p.userAgent)
 
-	/*
-		// Ignore the peer if it's not a sync candidate.
-		if !b.isSyncCandidate(p) {
-			return
-		}
-
-		// Add the peer as a candidate to sync from.
-		peers.PushBack(p)
-
-		// Start syncing by choosing the best candidate if needed.
-		b.startSync(peers)
-	*/
-
 	// Ignore the peer if it's not a sync candidate.
 	if !b.isSyncCandidateFactom(p) {
 		return
@@ -274,20 +252,6 @@ func (b *blockManager) handleDonePeerMsg(peers *list.List, p *peer) {
 	// mode so
 	if b.syncPeer != nil && b.syncPeer == p {
 		b.syncPeer = nil
-		/*
-			if b.headersFirstMode {
-				// This really shouldn't fail.  We have a fairly
-				// unrecoverable database issue if it does.
-				newestHash, height, err := db.FetchBlockHeightCache()
-				if err != nil {
-					bmgrLog.Warnf("Unable to obtain latest "+
-						"block information from the database: "+
-						"%v", err)
-					return
-				}
-				b.resetHeaderState(newestHash, height)
-			}
-		*/
 		b.startSyncFactom(peers)
 	}
 }
@@ -326,26 +290,6 @@ func (b *blockManager) current() bool {
 // are in the memory pool (either the main pool or orphan pool).
 func (b *blockManager) haveInventory(invVect *wire.InvVect) (bool, error) {
 	switch invVect.Type {
-	case wire.InvTypeBlock:
-		panic(errors.New("probably not needed: Factoid1"))
-		// Ask chain if the block is known to it in any form (main
-		// chain, side chain, or orphan).
-		//		return b.blockChain.HaveBlock(&invVect.Hash)
-
-	case wire.InvTypeTx:
-		panic(errors.New("needed Factoid1"))
-
-		/*
-			// Ask the transaction memory pool if the transaction is known
-			// to it in any form (main pool or orphan).
-			if b.server.txMemPool.HaveTransaction(&invVect.Hash) {
-				return true, nil
-			}
-
-			// Check if the transaction exists from the point of view of the
-			// end of the main chain.
-			return b.server.db.ExistsTxSha(&invVect.Hash)
-		*/
 
 	case wire.InvTypeFactomDirBlock:
 		// Ask db if the block is known to it in any form (main
@@ -378,48 +322,6 @@ out:
 
 			case getSyncPeerMsg:
 				msg.reply <- b.syncPeer
-
-				/*
-					case checkConnectBlockMsg:
-						err := b.blockChain.CheckConnectBlock(msg.block)
-						msg.reply <- err
-
-							case calcNextReqDifficultyMsg:
-								difficulty, err :=
-									b.blockChain.CalcNextRequiredDifficulty(
-										msg.timestamp)
-								msg.reply <- calcNextReqDifficultyResponse{
-									difficulty: difficulty,
-									err:        err,
-								}
-				*/
-
-			case processBlockMsg:
-				panic(errors.New("probably not needed: Factoid1"))
-				/*
-					isOrphan, err := b.blockChain.BC_ProcessBlock(
-						msg.block, b.server.timeSource,
-						msg.flags)
-					if err != nil {
-						msg.reply <- processBlockResponse{
-							isOrphan: false,
-							err:      err,
-						}
-					}
-				*/
-
-				// Query the db for the latest best block since
-				// the block that was processed could be on a
-				// side chain or have caused a reorg.
-				/*
-						newestSha, newestHeight, _ := b.server.db.NewestSha()
-						b.updateChainState(newestSha, newestHeight)
-
-					msg.reply <- processBlockResponse{
-						isOrphan: isOrphan,
-						err:      nil,
-					}
-				*/
 
 			case isCurrentMsg:
 				msg.reply <- b.current()
@@ -502,20 +404,6 @@ func (b *blockManager) QueueInv(inv *wire.MsgInv, p *peer) {
 	b.msgChan <- &invMsg{inv: inv, peer: p}
 }
 
-/*
-// QueueHeaders adds the passed headers message and peer to the block handling
-// queue.
-func (b *blockManager) QueueHeaders(headers *wire.MsgHeaders, p *peer) {
-	// No channel handling here because peers do not need to block on
-	// headers messages.
-	if atomic.LoadInt32(&b.shutdown) != 0 {
-		return
-	}
-
-	b.msgChan <- &headersMsg{headers: headers, peer: p}
-}
-*/
-
 // DonePeer informs the blockmanager that a peer has disconnected.
 func (b *blockManager) DonePeer(p *peer) {
 	// Ignore if we are shutting down.
@@ -560,19 +448,6 @@ func (b *blockManager) SyncPeer() *peer {
 	b.msgChan <- getSyncPeerMsg{reply: reply}
 	return <-reply
 }
-
-/*
-// ProcessBlock makes use of ProcessBlock on an internal instance of a block
-// chain.  It is funneled through the block manager since btcchain is not safe
-// for concurrent access.
-func (b *blockManager) bm_ProcessBlock(block *btcutil.Block, flags blockchain.BehaviorFlags) (bool, error) {
-	//util.Trace()
-	reply := make(chan processBlockResponse, 1)
-	b.msgChan <- processBlockMsg{block: block, flags: flags, reply: reply}
-	response := <-reply
-	return response.isOrphan, response.err
-}
-*/
 
 // IsCurrent returns whether or not the block manager believes it is synced with
 // the connected peers.

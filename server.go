@@ -24,7 +24,6 @@ import (
 	"github.com/FactomProject/btcd/addrmgr"
 	"github.com/FactomProject/btcd/chaincfg"
 	"github.com/FactomProject/btcd/wire"
-	"github.com/FactomProject/factomd/util"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -204,10 +203,6 @@ func (p *peerState) Count() int {
 func (p *peerState) OutboundCount() int {
 	return p.outboundPeers.Len() + p.persistentPeers.Len()
 }
-
-//func (p *peerState) FederateCount() int {
-//return p.federateServers.Len()
-//}
 
 func (p *peerState) NeedMoreOutbound() bool {
 	return p.OutboundCount() < p.maxOutboundPeers &&
@@ -414,23 +409,6 @@ func (s *server) handleRelayInvMsg(state *peerState, msg relayMsg) {
 			if p.RelayTxDisabled() {
 				return
 			}
-
-			/*
-				// Don't relay the transaction if there is a bloom
-				// filter loaded and the transaction doesn't match it.
-				if p.filter.IsLoaded() {
-					tx, ok := msg.data.(*btcutil.Tx)
-					if !ok {
-						peerLog.Warnf("Underlying data for tx" +
-							" inv relay is not a transaction")
-						return
-					}
-
-					if !p.filter.MatchTxAndUpdate(tx) {
-						return
-					}
-				}
-			*/
 		}
 
 		// Queue the inventory to be relayed with the next batch.
@@ -849,8 +827,8 @@ out:
 func (s *server) AddPeer(p *peer) {
 	s.newPeers <- p
 
-	count := s.ConnectedCount()
-	util.Trace(fmt.Sprintf("ConnectedCount()= %d", count))
+	//count := s.ConnectedCount()
+	//util.Trace(fmt.Sprintf("ConnectedCount()= %d", count))
 }
 
 // BanPeer bans a peer that has already been connected to the server by ip.
@@ -1047,27 +1025,6 @@ func (s *server) Start() {
 		s.wg.Add(1)
 		go s.upnpUpdateThread()
 	}
-	/*
-		if !cfg.DisableRPC {
-			s.wg.Add(1)
-
-			// Start the rebroadcastHandler, which ensures user tx received by
-			// the RPC server are rebroadcast until being included in a block.
-			go s.rebroadcastHandler()
-
-			s.rpcServer.Start()
-		}
-
-
-				// Start the CPU miner if generation is enabled.
-				if cfg.Generate {
-					s.cpuMiner.Start()
-				}
-
-			if cfg.AddrIndex {
-				s.addrIndexer.Start()
-			}
-	*/
 }
 
 // Stop gracefully shuts down the server by stopping and disconnecting all
@@ -1089,16 +1046,6 @@ func (s *server) Stop() error {
 			return err
 		}
 	}
-
-	/*
-			// Stop the CPU miner if needed
-			s.cpuMiner.Stop()
-
-
-		// Shutdown the RPC server if it's not disabled.
-		if !cfg.DisableRPC {
-			s.rpcServer.Stop()
-		}*/
 
 	// Signal the remaining goroutines to quit.
 	close(s.quit)
@@ -1422,23 +1369,6 @@ func newServer(listenAddrs []string, chainParams *chaincfg.Params) (*server, err
 	s.nodeID = factomConfig.App.NodeID
 	s.initServerKeys()
 	//s.nodeSig = s.privKey.Sign([]byte(s.nodeID))
-
-	/*
-			if cfg.AddrIndex {
-				ai, err := newAddrIndexer(&s)
-				if err != nil {
-					return nil, err
-				}
-				s.addrIndexer = ai
-			}
-
-
-		if !cfg.DisableRPC {
-			s.rpcServer, err = newRPCServer(cfg.RPCListeners, &s)
-			if err != nil {
-				return nil, err
-			}
-		}*/
 
 	return &s, nil
 }
