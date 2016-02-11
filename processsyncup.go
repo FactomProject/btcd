@@ -231,7 +231,7 @@ func validateBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, d
 				// validate signature of the previous dir block
 				aBlkMsg, _ := msg.(*wire.MsgABlock)
 				if !validateDBSignature(aBlkMsg.ABlk, dchain) {
-					return false
+					//return false
 				}
 			}
 		case fchain.ChainID.String():
