@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FactomProject/FactomCode/common"
+	"github.com/FactomProject/FactomCode/common"	
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
@@ -185,16 +185,16 @@ func (msg *MsgVersion) BtcDecode(r io.Reader, pver uint32) error {
 		}
 		msg.NodeID = nodeID
 	}
-	/*
-		if buf.Len() > 0 {
-			err = readElement(buf, &msg.NodeSig)
-			//nodeSig, err := readVarString(buf, pver)
-			if err != nil {
-				return err
-			}
-			//msg.NodeSig = nodeSig
+	
+	if buf.Len() > 0 {
+		err = readElement(buf, &msg.NodeSig)
+		//nodeSig, err := readVarString(buf, pver)
+		if err != nil {
+			return err
 		}
-	*/
+		//msg.NodeSig = nodeSig
+	}
+	
 	return nil
 }
 
@@ -258,13 +258,13 @@ func (msg *MsgVersion) BtcEncode(w io.Writer, pver uint32) error {
 	if err != nil {
 		return err
 	}
-	/*
-		err = writeElement(w, msg.NodeSig)
-		//err = writeVarString(w, pver, msg.NodeSig)
-		if err != nil {
-			return err
-		}
-	*/
+	
+	err = writeElement(w, msg.NodeSig)
+	//err = writeVarString(w, pver, msg.NodeSig)
+	if err != nil {
+		return err
+	}
+	
 	return nil
 }
 
