@@ -1141,7 +1141,7 @@ func newEntryBlock(chain *common.EChain) *common.EBlock {
 	}
 
 	// Create the block and add a new block for new coming entries
-	block.Header.DBHeight = dchain.NextDBHeight
+	block.Header.EBHeight = dchain.NextDBHeight
 	block.Header.EntryCount = uint32(len(block.Body.EBEntries))
 
 	chain.NextBlockHeight++
@@ -1336,7 +1336,7 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 
 	db.ProcessECBlockBatch(ecblock)
 	exportECBlock(ecblock)
-	procLog.Infof("Save EntryCreditBlock: block" + strconv.FormatUint(uint64(ecblock.Header.DBHeight), 10))
+	procLog.Infof("Save EntryCreditBlock: block" + strconv.FormatUint(uint64(ecblock.Header.EBHeight), 10))
 
 	db.ProcessDBlockBatch(dblock)
 	db.InsertDirBlockInfo(common.NewDirBlockInfoFromDBlock(dblock))
