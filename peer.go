@@ -472,10 +472,10 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 		p.pubKey = msg.NodeSig.Pub
 		peerLog.Info("update outbound peer id/type info: ", p)
 		// for now, assume verification is good
-		//if common.SERVER_NODE == p.nodeType && p.pubKey.Verify([]byte(p.nodeID), msg.NodeSig.Sig) {
-		p.server.federateServers.PushBack(p)
-		peerLog.Debugf("Signature verified & it's a new federate server: %s, total=%d", p, p.server.federateServers.Len())
-		//}
+		if common.SERVER_NODE == p.nodeType && p.pubKey.Verify([]byte(p.nodeID), msg.NodeSig.Sig) {
+			p.server.federateServers.PushBack(p)
+			peerLog.Debugf("Signature verified & it's a new federate server: %s, total=%d", p, p.server.federateServers.Len())
+		}
 	}
 
 	// Inbound connections.
