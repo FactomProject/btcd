@@ -8,8 +8,6 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -213,6 +211,7 @@ func (b *blockManager) handleNewPeerMsg(peers *list.List, p *peer) {
 
 	// Add the peer as a candidate to sync from.
 	peers.PushBack(p)
+	bmgrLog.Infof("Total peers after peers.PushBack(%s): %d", p, peers.Len())
 
 	// Start syncing by choosing the best candidate if needed.
 	b.startSyncFactom(peers)
@@ -488,52 +487,10 @@ func newBlockManager(s *server) (*blockManager, error) {
 	return &bm, nil
 }
 
-// removeRegressionDB removes the existing regression test database if running
-// in regression test mode and it already exists.
-func removeDB(dbPath string) error {
-
-	// Remove the old database if it already exists.
-	fi, err := os.Stat(dbPath)
-	if err == nil {
-		//		btcdLog.Infof("Removing regression test database from '%s'", dbPath)
-		btcdLog.Infof("Removing the database from '%s'", dbPath)
-		if fi.IsDir() {
-			err := os.RemoveAll(dbPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := os.Remove(dbPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// dbPath returns the path to the block database given a database type.
-func blockDbPath(dbType string) string {
-	// The database name is based on the database type.
-	dbName := blockDbNamePrefix + "_" + dbType
-	if dbType == "sqlite" {
-		dbName = dbName + ".db"
-	}
-	dbPath := filepath.Join(cfg.DataDir, dbName)
-	return dbPath
-}
-
 // handleDirInvMsg handles dir inv messages from all peers.
 // We examine the inventory advertised by the remote peer and act accordingly.
 func (b *blockManager) handleDirInvMsg(imsg *dirInvMsg) {
 	bmgrLog.Debug("handleDirInvMsg: ", spew.Sdump(imsg))
-
-	// Ignore invs from peers that aren't the sync if we are not current.
-	// Helps prevent fetching a mass of orphans.
-	if imsg.peer != b.syncPeer && !b.current() {
-		return
-	}
 
 	// Attempt to find the final block in the inventory list.  There may
 	// not be one.
@@ -547,6 +504,46 @@ func (b *blockManager) handleDirInvMsg(imsg *dirInvMsg) {
 			break
 		}
 	}
+
+	// If this inv contains a block annoucement, and this isn't coming from
+	// our current sync peer or we're current, then update the last
+	// announced block for this peer. We'll use this information later to
+	// update the heights of peers based on blocks we've accepted that they
+	// previously announced.
+	if lastBlock != -1 && (imsg.peer != b.syncPeer || b.current()) {
+		imsg.peer.UpdateLastAnnouncedBlock(&invVects[lastBlock].Hash)
+	}
+
+	// Ignore invs from peers that aren't the sync if we are not current.
+	// Helps prevent fetching a mass of orphans.
+	if imsg.peer != b.syncPeer && !b.current() {
+		return
+	}
+
+	// If our chain is current and a peer announces a block we already
+	// know of, then update their current block height.
+	if lastBlock != -1 && b.current() {
+		h := &invVects[lastBlock].Hash
+		hash, _ := common.NewShaHash(h.Bytes())
+		dblock, err := db.FetchDBlockByMR(hash)
+		if err == nil && dblock != nil {
+			imsg.peer.UpdateLastBlockHeight(int32(dblock.Header.DBHeight))
+			bmgrLog.Infof("handleDirInvMsg: UpdateLastBlockHeight: %d, %s, %s",
+				dblock.Header.DBHeight, hash.String(), imsg.peer)
+		}
+	}
+	/*
+		//exists, err := db.ExistsSha(&invVects[lastBlock].Hash)
+		//if err == nil && exists {
+			blkHeight, err := db.FetchBlockHeightBySha(&invVects[lastBlock].Hash)
+			if err != nil {
+				bmgrLog.Warnf("Unable to fetch block height for block (sha: %v), %v",
+					&invVects[lastBlock].Hash, err)
+			} else {
+				imsg.peer.UpdateLastBlockHeight(int32(blkHeight))
+			}
+		}
+	}*/
 
 	// Request the advertised inventory if we don't already have it.  Also,
 	// request parent blocks of orphans if we receive one we already have.
@@ -738,5 +735,5 @@ func (b *blockManager) isSyncCandidateFactom(p *peer) bool {
 	if common.SERVER_NODE == util.ReadConfig().App.NodeMode {
 		return true
 	}
-	return true
+	return false
 }

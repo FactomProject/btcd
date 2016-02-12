@@ -49,17 +49,19 @@ func factomForkInit(s *server) {
 				s.RelayInventory(iv, nil)
 
 			case wire.Message:
+				// verify if this wireMsg should be one of MsgEOM, MsgAck, commitEntry/chain, revealEntry/Chain
 				wireMsg, _ := msg.(wire.Message)
-				//s.BroadcastMessage(wireMsg)
-				if ClientOnly {
-					//fmt.Println("broadcasting from client.")
-					s.BroadcastMessage(wireMsg)
-				} else {
-					if _, ok := msg.(*wire.MsgAcknowledgement); ok {
-						//fmt.Println("broadcasting from server.")
+				s.BroadcastMessage(wireMsg)
+				/*
+					if ClientOnly {
+						//fmt.Println("broadcasting from client.")
 						s.BroadcastMessage(wireMsg)
-					}
-				}
+					} else {
+						if _, ok := msg.(*wire.MsgAcknowledgement); ok {
+							//fmt.Println("broadcasting from server.")
+							s.BroadcastMessage(wireMsg)
+						}
+					}*/
 
 			default:
 				panic(fmt.Sprintf("bad outMsgQueue message received: %v", msg))
@@ -100,18 +102,6 @@ func factomForkInit(s *server) {
 	}()
 }
 
-/*
-func Start_btcd(
-	ldb database.Db,
-	inMsgQ chan wire.FtmInternalMsg,
-	outMsgQ chan wire.FtmInternalMsg,
-	inCtlMsgQ chan wire.FtmInternalMsg,
-	outCtlMsgQ chan wire.FtmInternalMsg,
-	fcfg *util.FactomdConfig) { */
-//	user, pass string, clientMode bool) {
-
-//factomdUser = user
-//factomdPass = pass
 func Start_btcd(fcfg *util.FactomdConfig) {
 
 	factomConfig = fcfg
@@ -136,14 +126,6 @@ func Start_btcd(fcfg *util.FactomdConfig) {
 			0)
 		fmt.Println("\n\n>>>>>>>>>>>>>>>>>  SERVER MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
 	}
-
-	/*
-		db = ldb
-		inMsgQueue = inMsgQ
-		outMsgQueue = outMsgQ
-		inCtlMsgQueue = inCtlMsgQ
-		outCtlMsgQueue = outCtlMsgQ
-	*/
 
 	// Work around defer not working after os.Exit()
 	if err := btcdMain(nil); err != nil {

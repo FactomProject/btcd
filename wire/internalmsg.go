@@ -29,7 +29,7 @@ type FtmInternalMsg interface {
 type MsgInt_EOM struct {
 	EOM_Type         byte
 	NextDBlockHeight uint32
-	EC_Exchange_Rate uint64
+	//EC_Exchange_Rate uint64
 }
 
 // End-of-Minute internal message for time commnunications between Goroutines

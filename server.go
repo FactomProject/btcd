@@ -229,7 +229,7 @@ func (p *peerState) forAllPeers(closure func(p *peer)) {
 	p.forAllOutboundPeers(closure)
 }
 
-// handleUpdatePeerHeight updates the heights of all peers who were known to
+// handleUpdatePeerHeights updates the heights of all peers who were known to
 // announce a block we recently accepted.
 func (s *server) handleUpdatePeerHeights(state *peerState, umsg updatePeerHeightsMsg) {
 	state.forAllPeers(func(p *peer) {
@@ -812,11 +812,6 @@ out:
 		}
 	}
 
-	/*
-		if cfg.AddrIndex {
-			s.addrIndexer.Stop()
-		}
-	*/
 	s.blockManager.Stop()
 	s.addrManager.Stop()
 	s.wg.Done()

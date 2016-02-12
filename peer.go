@@ -1564,6 +1564,43 @@ func (p *peer) handleDirBlockMsg(msg *wire.MsgDirBlock, buf []byte) {
 
 	delete(p.requestedBlocks, *hash)
 	delete(p.server.blockManager.requestedBlocks, *hash)
+
+	// Meta-data about the new block this peer is reporting. We use this
+	// below to update this peer's lastest block height and the heights of
+	// other peers based on their last announced block sha. This allows us
+	// to dynamically update the block heights of peers, avoiding stale heights
+	// when looking for a new sync peer. Upon acceptance of a block or
+	// recognition of an orphan, we also use this information to update
+	// the block heights over other peers who's invs may have been ignored
+	// if we are actively syncing while the chain is not yet current or
+	// who may have lost the lock announcment race.
+	var heightUpdate int32
+
+	// Query the db for the latest best block since the block
+	// that was processed could be on a side chain or have caused
+	// a reorg.
+	//newestSha, newestHeight, _ := db.NewestSha()
+	//b.updateChainState(newestSha, newestHeight)
+	blkShaUpdate, newestHeight, _ := db.FetchBlockHeightCache()
+
+	// Update this peer's latest block height, for future
+	// potential sync node candidancy.
+	heightUpdate = int32(newestHeight)
+
+	// Update the block height for this peer. But only send a message to
+	// the server for updating peer heights if this is an orphan or our
+	// chain is "current". This avoid sending a spammy amount of messages
+	// if we're syncing the chain from scratch.
+	if blkShaUpdate != nil && heightUpdate != 0 {
+		p.UpdateLastBlockHeight(heightUpdate)
+		peerLog.Infof("handleDirBlockMsg: UpdateLastBlockHeight: %d, %s, %s",
+			heightUpdate, blkShaUpdate, p)
+		if p.server.blockManager.current() {
+			peerLog.Infof("handleDirBlockMsg: UpdatePeerHeights: %d, %s, %s",
+				heightUpdate, blkShaUpdate, p)
+			go p.server.UpdatePeerHeights(blkShaUpdate, int32(heightUpdate), p)
+		}
+	}
 }
 
 // handleABlockMsg is invoked when a peer receives a entry credit block message.

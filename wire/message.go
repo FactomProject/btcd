@@ -72,6 +72,8 @@ const (
 
 	CmdAcknowledgement = "confirmation"
 	CmdMHashReveal     = "mhashreveal"
+	CmdEOM             = "eom"
+	CmdDirBlockSig     = "dirblocksig"
 )
 
 // MaxAppMsgPayload is the maximum bytes a factom app message can be in bytes.
@@ -109,25 +111,11 @@ func makeEmptyMessage(command string) (Message, error) {
 	case CmdAddr:
 		msg = &MsgAddr{}
 
-		//	case CmdGetBlocks:
-		//		msg = &MsgGetBlocks{}
-
-		//	case CmdBlock:
-		//		msg = &MsgBlock{}
-
 	case CmdInv:
 		msg = &MsgInv{}
 
-		//	case CmdGetData:
-		//		msg = &MsgGetData{}
-
 	case CmdNotFound:
 		msg = &MsgNotFound{}
-
-		/*
-			case CmdTx:
-				msg = &MsgTx{}
-		*/
 
 	case CmdPing:
 		msg = &MsgPing{}
@@ -135,27 +123,12 @@ func makeEmptyMessage(command string) (Message, error) {
 	case CmdPong:
 		msg = &MsgPong{}
 
-		//	case CmdGetHeaders:
-		//		msg = &MsgGetHeaders{}
-
-		//	case CmdHeaders:
-		//		msg = &MsgHeaders{}
-
 	case CmdAlert:
 		msg = &MsgAlert{}
 
 	case CmdMemPool:
 		msg = &MsgMemPool{}
-		/*
-			case CmdFilterAdd:
-				msg = &MsgFilterAdd{}
 
-			case CmdFilterClear:
-				msg = &MsgFilterClear{}
-
-			case CmdFilterLoad:
-				msg = &MsgFilterLoad{}
-		*/
 	case CmdReject:
 		msg = &MsgReject{}
 
@@ -206,6 +179,12 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdFactoidTX:
 		msg = &MsgFactoidTX{}
+
+	case CmdEOM:
+		msg = &MsgEOM{}
+
+	case CmdDirBlockSig:
+		msg = &MsgDirBlockSig{}
 
 	default:
 		return nil, fmt.Errorf("unhandled command [%s]", command)
