@@ -27,7 +27,7 @@ func readElement(r io.Reader, element interface{}) error {
 	// Attempt to read the element based on the concrete type via fast
 	// type assertions first.
 	switch e := element.(type) {
-	case common.Signature:
+	case *common.Signature:
 		fmt.Println("readElement, Signature: ")
 		var data [96]byte
 		_, err := io.ReadFull(r, data[:])
@@ -35,7 +35,7 @@ func readElement(r io.Reader, element interface{}) error {
 			fmt.Println(err.Error())
 			return err
 		}
-		e = common.UnmarshalBinarySignature(data[:])
+		*e = common.UnmarshalBinarySignature(data[:])
 		fmt.Println("sig=", spew.Sdump(e))
 		return nil
 

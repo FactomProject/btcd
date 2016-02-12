@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FactomProject/FactomCode/common"
+	"github.com/FactomProject/FactomCode/common"	
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
