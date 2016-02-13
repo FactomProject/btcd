@@ -89,7 +89,7 @@ func (msg *MsgAcknowledgement) BtcDecode(r io.Reader, pver uint32) error {
 	newData = newData[32:]
 	copy(msg.SerialHash[:], newData[0:32])
 	newData = newData[32:]
-	copy(msg.Signature[:], newData[0:63])
+	copy(msg.Signature[:], newData[0:64])
 	return nil
 }
 

@@ -1269,6 +1269,7 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	chain.NextDBHeight++
 	chain.NextBlock, _ = common.CreateDBlock(chain, block, 10)
 	chain.BlockMutex.Unlock()
+	procLog.Infof("newDirectoryBlock: new dbBlock=%s", spew.Sdump(block))
 
 	newDBlock = block
 	block.DBHash, _ = common.CreateHash(block)
@@ -1334,6 +1335,8 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 	if nodeMode == common.SERVER_NODE && dchain.NextDBHeight > 0 { //&& localServer.isLeader {
 		// get the previous directory block from db
 		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
+		procLog.Infof("SignDirBlock: dbBlock from db=%s", spew.Sdump(dbBlock))
+		procLog.Infof("SignDirBlock: new dbBlock=%s", spew.Sdump(newdb))
 		dbHeaderBytes, _ := dbBlock.Header.MarshalBinary()
 		identityChainID := common.NewHash() // 0 ID for milestone 1 ????
 		sig := serverPrivKey.Sign(dbHeaderBytes)

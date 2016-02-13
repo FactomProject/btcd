@@ -754,13 +754,13 @@ func (p *peer) readMessage() (wire.Message, []byte, error) {
 		}
 		return fmt.Sprintf("Received %v%s from %s",
 			msg.Command(), summary, p)
-	}))
-	peerLog.Debugf("read: %v", newLogClosure(func() string {
-		return spew.Sdump(msg)
 	})) /*
-		peerLog.Debugf("%v", newLogClosure(func() string {
-			return spew.Sdump(buf)
-		})) */
+		peerLog.Debugf("read: %v", newLogClosure(func() string {
+			return spew.Sdump(msg)
+		}))
+			peerLog.Debugf("%v", newLogClosure(func() string {
+				return spew.Sdump(buf)
+			})) */
 
 	return msg, buf, nil
 }
@@ -794,19 +794,19 @@ func (p *peer) writeMessage(msg wire.Message) {
 		}
 		return fmt.Sprintf("Sending %v%s to %s", msg.Command(),
 			summary, p)
-	}))
-	peerLog.Debugf("write: %v", newLogClosure(func() string {
-		return spew.Sdump(msg)
 	})) /*
-		peerLog.Debugf("%v", newLogClosure(func() string {
-			var buf bytes.Buffer
-			err := wire.WriteMessage(&buf, msg, p.ProtocolVersion(),
-				p.btcnet)
-			if err != nil {
-				return err.Error()
-			}
-			return spew.Sdump(buf.Bytes())
-		})) */
+		peerLog.Debugf("write: %v", newLogClosure(func() string {
+			return spew.Sdump(msg)
+		}))
+			peerLog.Debugf("%v", newLogClosure(func() string {
+				var buf bytes.Buffer
+				err := wire.WriteMessage(&buf, msg, p.ProtocolVersion(),
+					p.btcnet)
+				if err != nil {
+					return err.Error()
+				}
+				return spew.Sdump(buf.Bytes())
+			})) */
 
 	// Write the message to the peer.
 	n, err := wire.WriteMessageN(p.conn, msg, p.ProtocolVersion(),
