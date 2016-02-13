@@ -7,7 +7,6 @@
 package btcd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -24,11 +23,8 @@ var (
 	localServer  *server
 	db           database.Db // database
 	factomConfig *util.FactomdConfig
-	inMsgQueue   chan wire.FtmInternalMsg //incoming message queue for factom application messages
-	outMsgQueue  chan wire.FtmInternalMsg //outgoing message queue for factom application messages
-
-	inCtlMsgQueue  chan wire.FtmInternalMsg //incoming message queue for factom control messages
-	outCtlMsgQueue chan wire.FtmInternalMsg //outgoing message queue for factom control messages
+	inMsgQueue   = make(chan wire.FtmInternalMsg, 100) //incoming message queue for factom application messages
+	outMsgQueue  = make(chan wire.FtmInternalMsg, 100) //outgoing message queue for factom application messages
 )
 
 // start up Factom queue(s) managers/processors
@@ -44,12 +40,24 @@ func factomForkInit(s *server) {
 		for msg := range outMsgQueue {
 			switch msg.(type) {
 			case *wire.MsgInt_DirBlock:
+				// once it's done block syncing, this is only needed for CLIENT
+				// Use broadcast to exclude federate servers
+				// todo ???
 				dirBlock, _ := msg.(*wire.MsgInt_DirBlock)
 				iv := wire.NewInvVect(wire.InvTypeFactomDirBlock, dirBlock.ShaHash)
 				s.RelayInventory(iv, nil)
+				//msgDirBlock := &wire.MsgDirBlock{DBlk: dirBlock}
+				//excludedPeers := make([]*peer, 0, 32)
+				//for e := localServer.federateServers.Front(); e != nil; e = e.Next() {
+				//excludedPeers = append(excludedPeers, e.Value.(*peer))
+				//}
+				//s.BroadcastMessage(msgDirBlock, excludedPeers)
 
 			case wire.Message:
-				// verify if this wireMsg should be one of MsgEOM, MsgAck, commitEntry/chain, revealEntry/Chain
+				// verify if this wireMsg should be one of MsgEOM, MsgAck,
+				// commitEntry/chain, revealEntry/Chain and MsgDirBlockSig
+				// need to exclude all peers that are not federate servers
+				// todo ???
 				wireMsg, _ := msg.(wire.Message)
 				s.BroadcastMessage(wireMsg)
 				/*
@@ -73,36 +81,9 @@ func factomForkInit(s *server) {
 			        }*/
 		}
 	}()
-
-	go func() {
-		for msg := range outCtlMsgQueue {
-
-			fmt.Printf("in range outCtlMsgQueue, msg:%+v\n", msg)
-
-			msgEom, _ := msg.(*wire.MsgInt_EOM)
-
-			//			switch msgEom.Command() {
-			switch msg.Command() {
-
-			case wire.CmdInt_EOM:
-
-				switch msgEom.EOM_Type {
-
-				case wire.END_MINUTE_10:
-					panic(errors.New("unhandled END_MINUTE_10"))
-
-				default:
-					panic(errors.New("unhandled EOM type"))
-				}
-
-			default:
-				panic(errors.New("unhandled CmdInt_EOM"))
-			}
-		}
-	}()
 }
 
-func Start_btcd(fcfg *util.FactomdConfig) {
+func StartBtcd(fcfg *util.FactomdConfig) {
 
 	factomConfig = fcfg
 	if common.SERVER_NODE != fcfg.App.NodeMode {

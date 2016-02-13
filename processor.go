@@ -70,12 +70,9 @@ var (
 	// FactoshisPerCredit is .001 / .15 * 100000000 (assuming a Factoid is .15 cents, entry credit = .1 cents
 	FactoshisPerCredit uint64
 	blockSyncing       bool
-	eomAckChan         = make(chan *wire.MsgAcknowledgement)
+	doneSyncChan       = make(chan struct{})
+	zeroHash           = common.NewHash()
 
-	zeroHash = common.NewHash()
-)
-
-var (
 	directoryBlockInSeconds int
 	dataStorePath           string
 	ldbpath                 string
@@ -87,40 +84,25 @@ var (
 
 // LoadConfigurations gets the configurations
 func LoadConfigurations(cfg *util.FactomdConfig) {
-
 	//setting the variables by the valued form the config file
-	//logLevel = cfg.Log.LogLevel
 	dataStorePath = cfg.App.DataStorePath
 	ldbpath = cfg.App.LdbPath
 	directoryBlockInSeconds = cfg.App.DirectoryBlockInSeconds
 	nodeMode = cfg.App.NodeMode
 	serverPrivKeyHex = cfg.App.ServerPrivKey
-
 	cp.CP.SetPort(cfg.Controlpanel.Port)
 }
 
 // Initialize the processor
 func initProcessor() {
 	procLog.Infof("initProcessor: blockSyncing=%v", blockSyncing)
-
-	//wire.Init()
-
-	// init server private key or pub key
 	initServerKeys()
-
-	// init mem pools
 	fMemPool = new(ftmMemPool)
 	fMemPool.init_ftmMemPool()
-
-	// init wire.FChainID
-	//wire.FChainID = common.NewHash()
-	//wire.FChainID.SetBytes(common.FACTOID_CHAINID)
-
 	FactoshisPerCredit = 666666 // .001 / .15 * 100000000 (assuming a Factoid is .15 cents, entry credit = .1 cents
 
 	// init Directory Block Chain
 	initDChain()
-
 	procLog.Info("Loaded ", dchain.NextDBHeight, " Directory blocks for chain: "+dchain.ChainID.String())
 
 	// init Entry Credit Chain
@@ -132,7 +114,6 @@ func initProcessor() {
 	procLog.Info("Loaded ", achain.NextBlockHeight, " Admin blocks for chain: "+achain.ChainID.String())
 
 	initFctChain()
-	//common.FactoidState.LoadState()
 	procLog.Info("Loaded ", fchain.NextBlockHeight, " factoid blocks for chain: "+fchain.ChainID.String())
 
 	//Init anchor for server
@@ -171,55 +152,32 @@ func initProcessor() {
 }
 
 // StartProcessor is started from factomd
-func StartProcessor(
-	ldb database.Db,
-	inMsgQ chan wire.FtmInternalMsg,
-	outMsgQ chan wire.FtmInternalMsg,
-	inCtlMsgQ chan wire.FtmInternalMsg,
-	outCtlMsgQ chan wire.FtmInternalMsg) {
-
+func StartProcessor(ldb database.Db) {
 	db = ldb
-	inMsgQueue = inMsgQ
-	outMsgQueue = outMsgQ
-	inCtlMsgQueue = inCtlMsgQ
-	outCtlMsgQueue = outCtlMsgQ
-
 	initProcessor()
 	procLog.Info("StartProcessor: blockSyncing=", blockSyncing)
 
 	// Initialize timer for the open dblock before processing messages
 	if nodeMode == common.SERVER_NODE && !blockSyncing {
-		procLog.Info("StartProcessor: StartBlockTimer")
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,
-			inCtlMsgQueue:    inCtlMsgQueue,
+			inMsgQueue:       inMsgQueue,
 		}
 		go timer.StartBlockTimer()
 	} else {
 		// start the go routine to process the blocks and entries downloaded
 		// from peers
 		procLog.Info("StartProcessor: validateAndStoreBlocks")
-		go validateAndStoreBlocks(fMemPool, db, dchain, outCtlMsgQueue)
+		go validateAndStoreBlocks(fMemPool, db, dchain)
 	}
 
 	// Process msg from the incoming queue one by one
 	for {
 		select {
-		case msg := <-inMsgQ:
+		case msg := <-inMsgQueue:
 			if err := serveMsgRequest(msg); err != nil {
 				procLog.Error(err)
 			}
-
-		case ctlMsg := <-inCtlMsgQueue:
-			if err := serveMsgRequest(ctlMsg); err != nil {
-				procLog.Error(err)
-			}
-
-			//case ack := <-eomAckChan:
-			//this is for followers only
-			//if err := processFollowerEOMAck(ack); err != nil {
-			//procLog.Error(err)
-			//}
 		}
 	}
 }
@@ -286,42 +244,37 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 	case wire.CmdAcknowledgement:
 		// only post-syncup followers need to deal with Ack
 		if nodeMode != common.SERVER_NODE || localServer.IsLeader() || !blockSyncing {
-			break
+			return nil
 		}
-		entry, ok := msg.(*wire.MsgAcknowledgement)
-		if ok {
-			err := processAcknowledgement(entry)
-			if err != nil {
-				return err
-			}
-		} else {
-			return errors.New("Error in processing msg:" + fmt.Sprintf("%+v", msg))
+		entry, _ := msg.(*wire.MsgAcknowledgement)
+		err := processAcknowledgement(entry)
+		if err != nil {
+			return err
 		}
 
 	case wire.CmdDirBlockSig:
 		//only when server is building blocks
 		if nodeMode != common.SERVER_NODE || blockSyncing {
-			break
+			return nil
 		}
-		dbs, ok := msg.(*wire.MsgDirBlockSig)
-		if ok {
-			// to simplify this, use the next wire.END_MINUTE_1 to trigger signature comparison. ???
-			fMemPool.addDirBlockSig(dbs)
-		} else {
-			return errors.New("Error in processing msg:" + fmt.Sprintf("%+v", msg))
-		}
+		dbs, _ := msg.(*wire.MsgDirBlockSig)
+		// to simplify this, use the next wire.END_MINUTE_1 to trigger signature comparison. ???
+		fMemPool.addDirBlockSig(dbs)
 
 	case wire.CmdInt_EOM:
-		eom1, _ := msg.(*wire.MsgInt_EOM)
-		if eom1.EOM_Type == wire.END_MINUTE_1 {
+		if localServer == nil {
+			return nil
+		}
+		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
+		// to trigger signature comparison of last round.
+		// todo: when to start? can NOT do this for the first EOM_1 ???
+		msgEom, _ := msg.(*wire.MsgInt_EOM)
+		if msgEom.EOM_Type == wire.END_MINUTE_1 {
 			processDirBlockSig()
 		}
-		// only the leader need to deal with this and followers EOM will be driven by Ack of this EOM.
+		// only the leader need to deal with this and
+		// followers EOM will be driven by Ack of this EOM.
 		if localServer.IsLeader() {
-			msgEom, ok := msg.(*wire.MsgInt_EOM)
-			if !ok {
-				return errors.New("Error in build blocks:" + spew.Sdump(msg))
-			}
 			err := processLeaderEOM(msgEom)
 			if err != nil {
 				return err
@@ -469,16 +422,16 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 	procLog.Infof("PROCESSOR: leader's End of minute msg - wire.CmdInt_EOM:%+v\n", msgEom)
 	common.FactoidState.EndOfPeriod(int(msgEom.EOM_Type))
-
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
 		// Process from Orphan pool before the end of process list
 		processFromOrphanPool()
 	}
 
-	ack, err := plMgr.AddMyProcessListItem(msgEom, nil, wire.END_MINUTE_10)
+	ack, err := plMgr.AddMyProcessListItem(msgEom, nil, msgEom.EOM_Type)
 	if err != nil {
 		return err
 	}
+	procLog.Infof("processLeaderEOM: ack=%s", spew.Sdump(ack))
 	//???
 	if ack.ChainID == nil {
 		ack.ChainID = dchain.ChainID
@@ -498,6 +451,9 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 // decide which dir block to save to database and for anchor.
 func processDirBlockSig() error {
 	dbsigs := fMemPool.getDirBlockSigPool()
+	if len(dbsigs) == 0 {
+		return nil
+	}
 	totalServerNum := localServer.federateServers.Len()
 	procLog.Infof("By EOM_1, there're %d dirblock signatures arrived out of %d federate servers. %s",
 		len(dbsigs), totalServerNum)
@@ -543,6 +499,15 @@ func processDirBlockSig() error {
 // processAcknowledgement validates the ack and adds it to processlist
 // this is only for post-syncup followers need to deal with Ack
 func processAcknowledgement(msg *wire.MsgAcknowledgement) error {
+	procLog.Infof("processAcknowledgement: %s", spew.Sdump(msg))
+	// for followers only,
+	if msg.Type == wire.END_MINUTE_1 {
+		procLog.Infof("processAcknowledgement: Ack.Height=%d, dchain.NextDBHeight=%d",
+			msg.Height, dchain.NextDBHeight)
+		if msg.Height < dchain.NextDBHeight {
+			blockSyncing = false
+		}
+	}
 	// Validate the signiture
 	bytes, err := msg.GetBinaryForSignature()
 	if err != nil {
@@ -1094,7 +1059,7 @@ func buildBlocks() error {
 	if nodeMode == common.SERVER_NODE && !blockSyncing {
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,
-			inCtlMsgQueue:    inCtlMsgQueue,
+			inMsgQueue:       inMsgQueue,
 		}
 		go timer.StartBlockTimer()
 	}

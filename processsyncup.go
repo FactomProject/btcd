@@ -162,7 +162,7 @@ func processEntry(msg *wire.MsgEntry) error {
 }
 
 // Validate the new blocks in mem pool and store them in db
-func validateAndStoreBlocks(fMemPool *ftmMemPool, db database.Db, dchain *common.DChain, outCtlMsgQ chan wire.FtmInternalMsg) {
+func validateAndStoreBlocks(fMemPool *ftmMemPool, db database.Db, dchain *common.DChain) {
 	var myDBHeight int64
 	var sleeptime int
 	var dblk *common.DirectoryBlock

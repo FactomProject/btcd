@@ -5,14 +5,15 @@
 package btcd
 
 import (
-	"github.com/FactomProject/btcd/wire"
 	"time"
+
+	"github.com/FactomProject/btcd/wire"
 )
 
 // BlockTimer is set to sent End-Of-Minute messages to processor
 type BlockTimer struct {
 	nextDBlockHeight uint32
-	inCtlMsgQueue    chan wire.FtmInternalMsg //incoming message queue for factom control messages
+	inMsgQueue       chan wire.FtmInternalMsg //incoming message queue for factom control messages
 }
 
 // Send End-Of-Minute messages to processor for the current open directory block
@@ -23,7 +24,7 @@ func (bt *BlockTimer) StartBlockTimer() {
 	/*	t := time.Now()
 		time.Sleep(time.Duration((60 - t.Second()) * 1000000000))
 	*/
-
+	procLog.Info("BlockTimer.StartBlockTimer")
 	if directoryBlockInSeconds < 600 {
 		sleeptime := directoryBlockInSeconds / 10
 
@@ -37,7 +38,7 @@ func (bt *BlockTimer) StartBlockTimer() {
 			}
 
 			//send the end-of-minute message to processor
-			bt.inCtlMsgQueue <- eomMsg
+			bt.inMsgQueue <- eomMsg
 
 			time.Sleep(time.Duration(sleeptime * 1000000000))
 		}
@@ -67,7 +68,7 @@ func (bt *BlockTimer) StartBlockTimer() {
 		}
 
 		//send the end-of-minute message to processor
-		bt.inCtlMsgQueue <- eomMsg
+		bt.inMsgQueue <- eomMsg
 
 		minutesPassed++
 	}

@@ -32,7 +32,7 @@ func (mp *ftmMemPool) init_ftmMemPool() error {
 	mp.pool = make(map[wire.ShaHash]wire.Message)
 	mp.orphans = make(map[wire.ShaHash]wire.Message)
 	mp.blockpool = make(map[string]wire.Message)
-	mp.ackpool = make([]*wire.MsgAcknowledgement, 0, 200)
+	mp.ackpool = make([]*wire.MsgAcknowledgement, 0, 20000)
 	mp.dirBlockSigs = make([]*wire.MsgDirBlockSig, 0, 32)
 	return nil
 }
@@ -50,6 +50,7 @@ func (mp *ftmMemPool) getDirBlockSigPool() []*wire.MsgDirBlockSig {
 }
 
 func (mp *ftmMemPool) addAck(ack *wire.MsgAcknowledgement) {
+	procLog.Infof("addAck: %+v", ack)
 	mp.ackpool[ack.Index] = ack
 }
 
