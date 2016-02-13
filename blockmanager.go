@@ -343,7 +343,7 @@ out:
 				bmgrLog.Warnf("Invalid message type in block "+
 					"handler: %T", msg)
 				fmt.Printf("before invalid message type: msg=%s\n", spew.Sdump(msg))
-				panic(errors.New("invalid message type:"))
+				panic(errors.New("invalid message type"))
 			}
 
 		case <-b.quit:
@@ -686,7 +686,8 @@ func (b *blockManager) startSyncFactom(peers *list.List) {
 		// doesn't have a later block when it's equal, it will likely
 		// have one soon so it is a reasonable choice.  It also allows
 		// the case where both are at 0 such as during regression test.
-		if p.lastBlock < int32(height) {
+		// Factom: make it <=
+		if p.lastBlock <= int32(height) {
 			peers.Remove(e)
 			continue
 		}

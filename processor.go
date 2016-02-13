@@ -420,7 +420,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 }
 
 func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
-	procLog.Infof("PROCESSOR: leader's End of minute msg - wire.CmdInt_EOM:%+v\n", msgEom)
+	procLog.Infof("processLeaderEOM: wire.CmdInt_EOM:%+v\n", msgEom)
 	common.FactoidState.EndOfPeriod(int(msgEom.EOM_Type))
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
 		// Process from Orphan pool before the end of process list
@@ -589,8 +589,7 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 				return fMemPool.addOrphanMsg(msg, h)
 			}
 
-			ack, err := plMgr.AddMyProcessListItem(msg, h,
-				wire.ACK_REVEAL_ENTRY)
+			ack, err := plMgr.AddMyProcessListItem(msg, h, wire.ACK_REVEAL_ENTRY)
 			if err != nil {
 				return err
 			}
@@ -994,7 +993,7 @@ func buildBlocks() error {
 	dchain.AddDBEntry(&common.DBEntry{}) // ECBlock
 	dchain.AddDBEntry(&common.DBEntry{}) // factoid
 
-	if plMgr != nil && plMgr.MyProcessList.IsValid() {
+	if plMgr != nil {
 		buildFromProcessList(plMgr.MyProcessList)
 	}
 

@@ -463,7 +463,16 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 	p.disableRelayTx = msg.DisableRelayTx
 	p.relayMtx.Unlock()
 
-	peerLog.Info("NodeType: ", msg.NodeType, ", NodeID: ", msg.NodeID, ", NodeSig: ", msg.NodeSig)
+	peerLog.Info("NodeType: ", msg.NodeType, ", NodeID: ", msg.NodeID, ", NodeSig: ", spew.Sdump(msg.NodeSig))
+	// only verify id/sig for federate servers
+	if common.SERVER_NODE == msg.NodeType {
+		if msg.NodeSig.Pub.Verify([]byte(msg.NodeID), msg.NodeSig.Sig) {
+			p.server.federateServers.PushBack(p)
+			peerLog.Debugf("Signature verified & it's a new federate server: %s, total=%d", p, p.server.federateServers.Len())
+		} else {
+			panic("peer id/sig are not valid: " + p.String())
+		}
+	}
 	// inbound peer share the same id/type with the server.
 	// while outbound peer needs to set its id/type through incoming MsgVersion
 	if !p.inbound {
@@ -471,11 +480,6 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 		p.nodeID = msg.NodeID
 		p.pubKey = msg.NodeSig.Pub
 		peerLog.Info("update outbound peer id/type info: ", p)
-		// for now, assume verification is good
-		if common.SERVER_NODE == p.nodeType && p.pubKey.Verify([]byte(p.nodeID), msg.NodeSig.Sig) {
-			p.server.federateServers.PushBack(p)
-			peerLog.Debugf("Signature verified & it's a new federate server: %s, total=%d", p, p.server.federateServers.Len())
-		}
 	}
 
 	// Inbound connections.

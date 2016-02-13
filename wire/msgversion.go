@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/FactomProject/FactomCode/common"	
+	"github.com/FactomProject/FactomCode/common"
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
@@ -166,35 +166,29 @@ func (msg *MsgVersion) BtcDecode(r io.Reader, pver uint32) error {
 			fmt.Println("** after reading: msg.DisableRelayTx=", msg.DisableRelayTx)
 		}*/
 
-	fmt.Println("buf.len=", buf.Len())
 	if buf.Len() > 0 {
 		nodeType, err := readVarString(buf, pver)
-		fmt.Println("** after reading: ", nodeType)
 		if err != nil {
 			return err
 		}
 		msg.NodeType = nodeType
 	}
 
-	fmt.Println("buf.len=", buf.Len())
 	if buf.Len() > 0 {
 		nodeID, err := readVarString(buf, pver)
-		fmt.Println("** after reading: ", nodeID)
 		if err != nil {
 			return err
 		}
 		msg.NodeID = nodeID
 	}
-	
+
 	if buf.Len() > 0 {
 		err = readElement(buf, &msg.NodeSig)
-		//nodeSig, err := readVarString(buf, pver)
 		if err != nil {
 			return err
 		}
-		//msg.NodeSig = nodeSig
 	}
-	
+
 	return nil
 }
 
@@ -248,23 +242,20 @@ func (msg *MsgVersion) BtcEncode(w io.Writer, pver uint32) error {
 	//}
 
 	err = writeVarString(w, pver, msg.NodeType)
-	fmt.Println("after writing: ", msg.NodeType)
 	if err != nil {
 		return err
 	}
 
 	err = writeVarString(w, pver, msg.NodeID)
-	fmt.Println("after writing: ", msg.NodeID)
 	if err != nil {
 		return err
 	}
-	
+
 	err = writeElement(w, msg.NodeSig)
-	//err = writeVarString(w, pver, msg.NodeSig)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 

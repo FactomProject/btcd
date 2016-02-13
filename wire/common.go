@@ -13,7 +13,6 @@ import (
 
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/fastsha256"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // Maximum payload size for a variable length integer.
@@ -23,20 +22,17 @@ const MaxVarIntPayload = 9
 // depending on the concrete type of element pointed to.
 func readElement(r io.Reader, element interface{}) error {
 	var scratch [8]byte
-	//fmt.Println("readElement: ", spew.Sdump(element))
+
 	// Attempt to read the element based on the concrete type via fast
 	// type assertions first.
 	switch e := element.(type) {
 	case *common.Signature:
-		fmt.Println("readElement, Signature: ")
 		var data [96]byte
 		_, err := io.ReadFull(r, data[:])
 		if err != nil {
-			fmt.Println(err.Error())
 			return err
 		}
 		*e = common.UnmarshalBinarySignature(data[:])
-		fmt.Println("sig=", spew.Sdump(e))
 		return nil
 
 	case *int32:
@@ -145,16 +141,7 @@ func readElement(r io.Reader, element interface{}) error {
 		}
 		*e = BitcoinNet(binary.BigEndian.Uint32(b))
 		return nil
-		/*
-			case *BloomUpdateType:
-				b := scratch[0:1]
-				_, err := io.ReadFull(r, b)
-				if err != nil {
-					return err
-				}
-				*e = BloomUpdateType(b[0])
-				return nil
-		*/
+
 	case *RejectCode:
 		b := scratch[0:1]
 		_, err := io.ReadFull(r, b)
@@ -186,20 +173,17 @@ func readElements(r io.Reader, elements ...interface{}) error {
 // except for bytes and strings, which are just written out.
 func writeElement(w io.Writer, element interface{}) error {
 	var scratch [8]byte
-	//fmt.Println("writeElement: ", spew.Sdump(element))
 
 	// Attempt to write the element based on the concrete type via fast
 	// type assertions first.
 	switch e := element.(type) {
 	case common.Signature:
-		fmt.Println("writeElement - Signature")
 		data := common.MarshalBinarySignature(common.Signature(e))
 		_, err := w.Write(data[:])
 		if err != nil {
 			fmt.Println(err.Error())
 			return err
 		}
-		fmt.Println("writeElement - data: ", data)
 		return nil
 
 	case int32:

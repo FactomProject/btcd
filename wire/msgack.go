@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/FactomProject/FactomCode/common"
 	"io"
 	"io/ioutil"
+
+	"github.com/FactomProject/FactomCode/common"
 )
 
 // Acknowledgement Type
@@ -49,7 +50,6 @@ type MsgAcknowledgement struct {
 // Write out the MsgAcknowledgement (excluding Signature) to binary.
 func (msg *MsgAcknowledgement) GetBinaryForSignature() (data []byte, err error) {
 	var buf bytes.Buffer
-
 	binary.Write(&buf, binary.BigEndian, msg.Height)
 	if msg.ChainID != nil {
 		data, err = msg.ChainID.MarshalBinary()
@@ -58,15 +58,10 @@ func (msg *MsgAcknowledgement) GetBinaryForSignature() (data []byte, err error) 
 		}
 		buf.Write(data)
 	}
-
 	binary.Write(&buf, binary.BigEndian, msg.Index)
-
 	buf.Write([]byte{msg.Type})
-
 	buf.Write(msg.Affirmation.Bytes())
-
 	buf.Write(msg.SerialHash[:])
-
 	return buf.Bytes(), err
 }
 
@@ -74,12 +69,10 @@ func (msg *MsgAcknowledgement) GetBinaryForSignature() (data []byte, err error) 
 // This is part of the Message interface implementation.
 func (msg *MsgAcknowledgement) BtcDecode(r io.Reader, pver uint32) error {
 	//err := readElements(r, &msg.Height, msg.ChainID, &msg.Index, &msg.Type, msg.Affirmation, &msg.SerialHash, &msg.Signature)
-
 	newData, err := ioutil.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("MsgAcknowledgement.BtcDecode reader is invalid")
 	}
-
 	if len(newData) != 169 {
 		return fmt.Errorf("MsgAcknowledgement.BtcDecode reader does not have right length: ", len(newData))
 	}
@@ -90,17 +83,13 @@ func (msg *MsgAcknowledgement) BtcDecode(r io.Reader, pver uint32) error {
 	newData, _ = msg.ChainID.UnmarshalBinaryData(newData)
 
 	msg.Index, newData = binary.BigEndian.Uint32(newData[0:4]), newData[4:]
-
 	msg.Type, newData = newData[0], newData[1:]
+	msg.Affirmation, _ = NewShaHash(newData[:32])
 
-	msg.Affirmation, _ = NewShaHash(newData[0:32])
 	newData = newData[32:]
-
 	copy(msg.SerialHash[:], newData[0:32])
 	newData = newData[32:]
-
 	copy(msg.Signature[:], newData[0:63])
-
 	return nil
 }
 
@@ -108,20 +97,15 @@ func (msg *MsgAcknowledgement) BtcDecode(r io.Reader, pver uint32) error {
 // This is part of the Message interface implementation.
 func (msg *MsgAcknowledgement) BtcEncode(w io.Writer, pver uint32) error {
 	//err := writeElements(w, msg.Height, msg.ChainID, msg.Index, msg.Type, msg.Affirmation, msg.SerialHash, msg.Signature)
-
 	var buf bytes.Buffer
-
 	binary.Write(&buf, binary.BigEndian, msg.Height)
 	buf.Write(msg.ChainID.Bytes())
-
 	binary.Write(&buf, binary.BigEndian, msg.Index)
-	buf.Write([]byte{msg.Type})
+	buf.WriteByte(msg.Type)
 	buf.Write(msg.Affirmation.Bytes())
 	buf.Write(msg.SerialHash[:])
 	buf.Write(msg.Signature[:])
-
 	w.Write(buf.Bytes())
-
 	return nil
 }
 
@@ -134,7 +118,6 @@ func (msg *MsgAcknowledgement) Command() string {
 // MaxPayloadLength returns the maximum length the payload can be for the
 // receiver.  This is part of the Message interface implementation.
 func (msg *MsgAcknowledgement) MaxPayloadLength(pver uint32) uint32 {
-
 	// 10K is too big of course, TODO: adjust
 	return MaxAppMsgPayload
 }
@@ -142,7 +125,6 @@ func (msg *MsgAcknowledgement) MaxPayloadLength(pver uint32) uint32 {
 // NewMsgAcknowledgement returns a new bitcoin ping message that conforms to the Message
 // interface.  See MsgAcknowledgement for details.
 func NewMsgAcknowledgement(height uint32, index uint32, affirm *ShaHash, ackType byte) *MsgAcknowledgement {
-
 	if affirm == nil {
 		affirm = new(ShaHash)
 	}
@@ -157,11 +139,9 @@ func NewMsgAcknowledgement(height uint32, index uint32, affirm *ShaHash, ackType
 
 // Create a sha hash from the message binary (output of BtcEncode)
 func (msg *MsgAcknowledgement) Sha() (ShaHash, error) {
-
 	buf := bytes.NewBuffer(nil)
 	msg.BtcEncode(buf, ProtocolVersion)
 	var sha ShaHash
 	_ = sha.SetBytes(Sha256(buf.Bytes()))
-
 	return sha, nil
 }
