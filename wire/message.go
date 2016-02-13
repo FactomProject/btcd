@@ -70,7 +70,7 @@ const (
 	CmdCommitEntry = "commitentry"
 	CmdRevealEntry = "revealentry"
 
-	CmdAcknowledgement = "confirmation"
+	CmdAck = "confirmation"
 	CmdMHashReveal     = "mhashreveal"
 	CmdEOM             = "eom"
 	CmdDirBlockSig     = "dirblocksig"
@@ -144,8 +144,8 @@ func makeEmptyMessage(command string) (Message, error) {
 	case CmdCommitChain:
 		msg = &MsgCommitChain{}
 
-	case CmdAcknowledgement:
-		msg = &MsgAcknowledgement{}
+	case CmdAck:
+		msg = &MsgAck{}
 
 	case CmdGetDirBlocks:
 		msg = &MsgGetDirBlocks{}

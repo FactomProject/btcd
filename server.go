@@ -336,10 +336,6 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 	return true
 }
 
-//func (s *server) validateFederateServer(state *peerState, p *peer) bool {
-//return true
-//}
-
 // handleDonePeerMsg deals with peers that have signalled they are done.  It is
 // invoked from the peerHandler goroutine.
 func (s *server) handleDonePeerMsg(state *peerState, p *peer) {
@@ -1398,12 +1394,20 @@ func (s *server) SetLeaderPeer(p *peer) {
 	s.leaderPeer = p
 }
 
+func (s *server) GetLeaderPeer() *peer {
+	return s.leaderPeer
+}
+
 func (s *server) SetIsLeader(l bool) {
 	s.isLeader = l
 }
 
 func (s *server) IsLeader() bool {
 	return s.isLeader
+}
+
+func (s *server) GetNodeID() string {
+	return s.nodeID
 }
 
 func (s *server) initServerKeys() {

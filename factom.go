@@ -65,7 +65,7 @@ func factomForkInit(s *server) {
 						//fmt.Println("broadcasting from client.")
 						s.BroadcastMessage(wireMsg)
 					} else {
-						if _, ok := msg.(*wire.MsgAcknowledgement); ok {
+						if _, ok := msg.(*wire.MsgAck); ok {
 							//fmt.Println("broadcasting from server.")
 							s.BroadcastMessage(wireMsg)
 						}

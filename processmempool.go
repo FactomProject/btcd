@@ -11,29 +11,32 @@ import (
 	"time"
 
 	"github.com/FactomProject/FactomCode/common"
+	"github.com/FactomProject/FactomCode/consensus"
 	"github.com/FactomProject/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
 )
 
 // ftmMemPool is used as a source of factom transactions
-// (CommitChain, RevealChain, CommitEntry, RevealEntry)
+// (CommitChain, RevealChain, CommitEntry, RevealEntry, Ack, EOM, DirBlockSig)
 type ftmMemPool struct {
 	sync.RWMutex
-	pool         map[wire.ShaHash]wire.Message
-	orphans      map[wire.ShaHash]wire.Message
-	blockpool    map[string]wire.Message // to hold the blocks or entries downloaded from peers
-	ackpool      []*wire.MsgAcknowledgement
-	dirBlockSigs []*wire.MsgDirBlockSig
-	lastUpdated  time.Time // last time pool was updated
+	pool             map[wire.ShaHash]wire.Message
+	orphans          map[wire.ShaHash]wire.Message
+	blockpool        map[string]wire.Message // to hold the blocks or entries downloaded from peers
+	ackpool          []*wire.MsgAck
+	dirBlockSigs     []*wire.MsgDirBlockSig
+	processListItems []*consensus.ProcessListItem
+	lastUpdated      time.Time // last time pool was updated
 }
 
 // Add a factom message to the orphan pool
-func (mp *ftmMemPool) init_ftmMemPool() error {
+func (mp *ftmMemPool) initFtmMemPool() error {
 	mp.pool = make(map[wire.ShaHash]wire.Message)
 	mp.orphans = make(map[wire.ShaHash]wire.Message)
 	mp.blockpool = make(map[string]wire.Message)
-	mp.ackpool = make([]*wire.MsgAcknowledgement, 0, 20000)
+	mp.ackpool = make([]*wire.MsgAck, 0, 20000)
 	mp.dirBlockSigs = make([]*wire.MsgDirBlockSig, 0, 32)
+	mp.processListItems = make([]*consensus.ProcessListItem, 0, 20000)
 	return nil
 }
 
@@ -49,36 +52,67 @@ func (mp *ftmMemPool) getDirBlockSigPool() []*wire.MsgDirBlockSig {
 	return mp.dirBlockSigs
 }
 
-func (mp *ftmMemPool) addAck(ack *wire.MsgAcknowledgement) {
-	procLog.Infof("addAck: %+v", ack)
+// addAck add the ack to ackpool and find it's acknowledged msg.
+// then add them to ftmMemPool if available. otherwise return missing acked msg.
+func (mp *ftmMemPool) addAck(ack *wire.MsgAck) *wire.Message {
+	//procLog.Infof("addAck: %+v", ack)
 	mp.ackpool[ack.Index] = ack
+	if ack.Type == wire.ACK_REVEAL_ENTRY || ack.Type == wire.ACK_REVEAL_CHAIN ||
+		ack.Type == wire.ACK_COMMIT_CHAIN || ack.Type == wire.ACK_COMMIT_ENTRY {
+		msg := mp.pool[*ack.Affirmation]
+		if msg == nil {
+			// missing msg and request it from the leader ???
+			// create a new msg type
+			// req := wire.NewMissingMsg(msgHash, Height, Type)
+			// return req
+		} else {
+			pli := &consensus.ProcessListItem{
+				Ack:     ack,
+				Msg:     msg,
+				MsgHash: ack.Affirmation,
+			}
+			mp.processListItems[ack.Index] = pli
+		}
+	} else if ack.IsEomAck() {
+		pli := &consensus.ProcessListItem{
+			Ack:     ack,
+			Msg:     ack,
+			MsgHash: ack.Affirmation,
+		}
+		mp.processListItems[ack.Index] = pli
+	}
+	return nil
 }
 
-func (mp *ftmMemPool) assembleEomMessages(ack *wire.MsgAcknowledgement) {
-	var startIndex int
-	if ack.Type == wire.END_MINUTE_1 {
-		startIndex = 0
-	} else {
-		for i, a := range mp.ackpool {
-			if a.Type == ack.Type-byte(1) { //match the eom ack prior to ack
-				startIndex = i
-				break
-			}
+func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
+	var i uint32
+	var missingAcks []*wire.MsgAck
+	for i = 0; i <= ack.Index; i++ {
+		if mp.ackpool[i] == nil {
+			// missing an ACK here. request for this ack
+			a := ack.Clone()
+			a.Index = i
+			missingAcks = append(missingAcks, a)
+			procLog.Infof("Missing an Ack at index=%d, for ack=%s", i, spew.Sdump(a))
 		}
 	}
-	procLog.Info("assembleEomMessages, startIndex=%d, for ack=%s", startIndex, spew.Sdump(ack))
-	for i := startIndex; i <= int(ack.Index); i++ {
+	return missingAcks
+}
+
+func (mp *ftmMemPool) assembleEomMessages(ack *wire.MsgAck) error {
+	// simply validation
+	if ack.Type != wire.END_MINUTE_10 && mp.ackpool[len(mp.ackpool)-1] != ack {
+		return fmt.Errorf("the last ack has to be END_MINUTE_10")
+	}
+	for i := 0; i < len(mp.ackpool); i++ {
 		if mp.ackpool[i] == nil {
 			// missing an ACK here
 			// todo: request for this ack, panic for now
-			panic(fmt.Sprintf("Missing an Ack at index=%d, for ack=%s", i, spew.Sdump(ack)))
+			panic(fmt.Sprintf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack)))
 		}
+		plMgr.AddToLeadersProcessList(mp.ackpool[i], mp.ackpool[i].Affirmation, mp.ackpool[i].Type)
 	}
-	// for a clean state
-	for i := startIndex; i <= int(ack.Index); i++ {
-		plMgr.AddMyProcessListItem(mp.ackpool[i], mp.ackpool[i].Affirmation, mp.ackpool[i].Type)
-	}
-	plMgr.AddMyProcessListItem(ack, ack.Affirmation, ack.Type)
+	return nil
 }
 
 // Add a factom message to the  Mem pool

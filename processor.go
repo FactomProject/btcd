@@ -98,7 +98,7 @@ func initProcessor() {
 	procLog.Infof("initProcessor: blockSyncing=%v", blockSyncing)
 	initServerKeys()
 	fMemPool = new(ftmMemPool)
-	fMemPool.init_ftmMemPool()
+	fMemPool.initFtmMemPool()
 	FactoshisPerCredit = 666666 // .001 / .15 * 100000000 (assuming a Factoid is .15 cents, entry credit = .1 cents
 
 	// init Directory Block Chain
@@ -241,13 +241,14 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		// Broadcast the msg to the network if no errors
 		outMsgQueue <- msg
 
-	case wire.CmdAcknowledgement:
+	case wire.CmdAck:
 		// only post-syncup followers need to deal with Ack
+		procLog.Infof("in case.CmdAck: blockSyncing=%v", blockSyncing)
 		if nodeMode != common.SERVER_NODE || localServer.IsLeader() || !blockSyncing {
 			return nil
 		}
-		entry, _ := msg.(*wire.MsgAcknowledgement)
-		err := processAcknowledgement(entry)
+		entry, _ := msg.(*wire.MsgAck)
+		err := processAck(entry)
 		if err != nil {
 			return err
 		}
@@ -420,24 +421,25 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 }
 
 func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
-	procLog.Infof("processLeaderEOM: wire.CmdInt_EOM:%+v\n", msgEom)
+	//procLog.Infof("processLeaderEOM: wire.CmdInt_EOM:%+v\n", msgEom)
 	common.FactoidState.EndOfPeriod(int(msgEom.EOM_Type))
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
 		// Process from Orphan pool before the end of process list
 		processFromOrphanPool()
 	}
 
-	ack, err := plMgr.AddMyProcessListItem(msgEom, nil, msgEom.EOM_Type)
+	ack, err := plMgr.AddToLeadersProcessList(msgEom, nil, msgEom.EOM_Type)
 	if err != nil {
 		return err
 	}
-	procLog.Infof("processLeaderEOM: ack=%s", spew.Sdump(ack))
 	//???
 	if ack.ChainID == nil {
 		ack.ChainID = dchain.ChainID
 	}
+	procLog.Infof("processLeaderEOM: ack=%s", spew.Sdump(ack))
 	outMsgQueue <- ack
 
+	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
 		err = buildBlocks() //broadcast new dir block sig
 		if err != nil {
@@ -482,30 +484,40 @@ func processDirBlockSig() error {
 			break
 		} else if n == float32(0.5) {
 			//to-do: choose what leader has got to break the tie
-			//risk: some nodes might get different number or set of dirblock signatures
-			//or worse, some node could get a tie without leader's dirblock sig
-			//for _, d := range v {
 			procLog.Infof("Got a tie, and need to choose what the leader has for the winner of dirblock sig.")
-			//}
+			serverID := localServer.GetLeaderPeer().GetNodeID()
+			for _, d := range v {
+				if serverID == d.SourceNodeID {
+					winner = d
+					break
+				}
+			}
 		}
 	}
 	if winner == nil {
+		//risk: some nodes might get different number or set of dirblock signatures
+		//or worse, some node could get a tie without leader's dirblock sig
+		//request it from the leader
+		// req := wire.NewDirBlockSigMsg()
+		// localServer.GetLeaderPeer().pushGetDirBlockSig(req)
+		// how to coordinate when the response comes ???
 		panic("No winner in dirblock signature comparison.")
 	}
 	go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
 	return nil
 }
 
-// processAcknowledgement validates the ack and adds it to processlist
+// processAck validates the ack and adds it to processlist
 // this is only for post-syncup followers need to deal with Ack
-func processAcknowledgement(msg *wire.MsgAcknowledgement) error {
-	procLog.Infof("processAcknowledgement: %s", spew.Sdump(msg))
+func processAck(msg *wire.MsgAck) error {
+	procLog.Infof("processAck: %s", spew.Sdump(msg))
 	// for followers only,
 	if msg.Type == wire.END_MINUTE_1 {
-		procLog.Infof("processAcknowledgement: Ack.Height=%d, dchain.NextDBHeight=%d",
+		procLog.Infof("processAck: Ack.Height=%d, dchain.NextDBHeight=%d",
 			msg.Height, dchain.NextDBHeight)
 		if msg.Height < dchain.NextDBHeight {
 			blockSyncing = false
+			procLog.Info("** reset blockSyncing to FLASE")
 		}
 	}
 	// Validate the signiture
@@ -513,19 +525,36 @@ func processAcknowledgement(msg *wire.MsgAcknowledgement) error {
 	if err != nil {
 		return err
 	}
+	//todo: must use the peer's, not server's, public key to verify signature here
 	if !serverPubKey.Verify(bytes, &msg.Signature) {
 		//to-do
 		//return errors.New(fmt.Sprintf("Invalid signature in Ack = %s\n", spew.Sdump(msg)))
 	}
-	procLog.Infof("processor.processAcknowledgement: Ack = %s\n", spew.Sdump(msg))
+	procLog.Infof("processor.processAck: Ack = %s\n", spew.Sdump(msg))
 	procLog.Infof("msg.Height=%d, dchain.NextDBHeight=%d, db.FetchNextBlockHeightCache()=%d\n",
 		msg.Height, dchain.NextDBHeight, db.FetchNextBlockHeightCache())
 
-	fMemPool.addAck(msg)
-	if wire.END_MINUTE_1 <= msg.Type && msg.Type <= wire.END_MINUTE_10 {
-		//eomAckChan <- msg
+	missingMsg := fMemPool.addAck(msg)
+	if missingMsg != nil {
+		//request missing acks from Leader
+		//how to coordinate new processAck when missing acks come ???
+		//
+	}
+
+	var missingAcks []*wire.MsgAck
+	// only check missing acks every minute
+	if msg.IsEomAck() {
+		missingAcks = fMemPool.getMissingMsgAck(msg)
+		if len(missingAcks) > 0 {
+			//request missing acks from Leader
+			//how to coordinate new processAck when missing acks come ???
+			//
+		}
+	}
+	if msg.Type == wire.END_MINUTE_10 && missingMsg == nil && len(missingAcks) == 0 {
 		fMemPool.assembleEomMessages(msg)
 	}
+	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
 
 	//???
 	// Update the next block height in dchain
@@ -589,10 +618,11 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 				return fMemPool.addOrphanMsg(msg, h)
 			}
 
-			ack, err := plMgr.AddMyProcessListItem(msg, h, wire.ACK_REVEAL_ENTRY)
+			ack, err := plMgr.AddToLeadersProcessList(msg, h, wire.ACK_REVEAL_ENTRY)
 			if err != nil {
 				return err
 			}
+			procLog.Infof("ACK_REVEAL_ENTRY: %s", spew.Sdump(ack))
 			outMsgQueue <- ack
 			//???
 			delete(commitEntryMap, e.Hash().String())
@@ -656,7 +686,7 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 				procLog.Info("Exceeding MyProcessList size limit!")
 				return fMemPool.addOrphanMsg(msg, h)
 			}
-			ack, err := plMgr.AddMyProcessListItem(msg, h,
+			ack, err := plMgr.AddToLeadersProcessList(msg, h,
 				wire.ACK_REVEAL_CHAIN)
 			if err != nil {
 				return err
@@ -711,10 +741,11 @@ func processCommitEntry(msg *wire.MsgCommitEntry) error {
 			return fMemPool.addOrphanMsg(msg, &h)
 		}
 
-		ack, err := plMgr.AddMyProcessListItem(msg, &h, wire.ACK_COMMIT_ENTRY)
+		ack, err := plMgr.AddToLeadersProcessList(msg, &h, wire.ACK_COMMIT_ENTRY)
 		if err != nil {
 			return err
 		}
+		procLog.Infof("ACK_COMMIT_ENTRY: %s", spew.Sdump(ack))
 		outMsgQueue <- ack
 	} else {
 		//as follower
@@ -763,10 +794,11 @@ func processCommitChain(msg *wire.MsgCommitChain) error {
 			return fMemPool.addOrphanMsg(msg, &h)
 		}
 
-		ack, err := plMgr.AddMyProcessListItem(msg, &h, wire.ACK_COMMIT_CHAIN)
+		ack, err := plMgr.AddToLeadersProcessList(msg, &h, wire.ACK_COMMIT_CHAIN)
 		if err != nil {
 			return err
 		}
+		procLog.Infof("ACK_COMMIT_CHAIN: %s", spew.Sdump(ack))
 		outMsgQueue <- ack
 	} else {
 		//as follower
@@ -795,7 +827,7 @@ func processBuyEntryCredit(msg *wire.MsgFactoidTX) error {
 		return fMemPool.addOrphanMsg(msg, &h)
 	}
 
-	if _, err := plMgr.AddMyProcessListItem(msg, &h, wire.ACK_FACTOID_TX); err != nil {
+	if _, err := plMgr.AddToLeadersProcessList(msg, &h, wire.ACK_FACTOID_TX); err != nil {
 		return err
 	}
 

@@ -162,6 +162,7 @@ type peer struct {
 	nodeType string //nodeMode
 	nodeID   string //*wire.ShaHash
 	pubKey   common.PublicKey
+	isLeader bool
 
 	inbound            bool
 	persistent         bool
@@ -991,8 +992,12 @@ out:
 			p.handleRevealEntryMsg(msg)
 			//p.FactomRelay(msg)
 
-		case *wire.MsgAcknowledgement:
-			p.handleAcknoledgementMsg(msg)
+		case *wire.MsgAck:
+			p.handleAckMsg(msg)
+			//p.FactomRelay(msg)
+
+		case *wire.MsgDirBlockSig:
+			p.handleDirBlockSigMsg(msg)
 			//p.FactomRelay(msg)
 
 			// Factom blocks downloading
@@ -2291,7 +2296,19 @@ func (p *peer) handleRevealEntryMsg(msg *wire.MsgRevealEntry) {
 }
 
 // Handle factom app imcoming msg
-func (p *peer) handleAcknoledgementMsg(msg *wire.MsgAcknowledgement) {
+func (p *peer) handleAckMsg(msg *wire.MsgAck) {
+	// Add the msg to inbound msg queue
+	if !ClientOnly {
+		inMsgQueue <- msg
+	}
+	// this peer is a leader. maybe duplicated ???
+	p.isLeader = true
+	p.server.isLeader = true
+	p.server.SetLeaderPeer(p)
+}
+
+// Handle factom app imcoming msg
+func (p *peer) handleDirBlockSigMsg(msg *wire.MsgDirBlockSig) {
 	// Add the msg to inbound msg queue
 	if !ClientOnly {
 		inMsgQueue <- msg
@@ -2314,13 +2331,17 @@ func (p *peer) shallRelay(msg interface{}) bool {
 	return false
 }
 
-// Call FactomRelay to relay/broadcast a Factom message (to your peers).
+// FactomRelay Calls FactomRelay to relay/broadcast a Factom message (to your peers).
 // The intent is to call this function after certain 'processor' checks been done.
 func (p *peer) FactomRelay(msg wire.Message) {
-
 	// broadcast/relay only if hadn't been done for this peer
 	if p.shallRelay(msg) {
 		//		p.server.BroadcastMessage(msg, p)
 		localServer.BroadcastMessage(msg)
 	}
+}
+
+//GetNodeID returns this peer's nodeID
+func (p *peer) GetNodeID() string {
+	return p.nodeID
 }
