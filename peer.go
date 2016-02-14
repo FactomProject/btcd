@@ -1253,12 +1253,6 @@ out:
 					p.lastPingTime = time.Now()
 				}
 				p.StatsMtx.Unlock()
-			case *wire.MsgMemPool:
-				// Should return an inv.
-			//case *wire.MsgGetData:
-			// Should get us block, tx, or not found.
-			//case *wire.MsgGetHeaders:
-			// Should get us headers back.
 			case *wire.MsgGetDirData:
 				// Should get us dir block, or not found for factom
 			default:

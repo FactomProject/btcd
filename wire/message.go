@@ -26,34 +26,19 @@ const MaxMessagePayload = (1024 * 1024 * 32) // 32MB
 
 // Commands used in bitcoin message headers which describe the type of message.
 const (
-	CmdVersion = "version"
-	CmdVerAck  = "verack"
-	CmdGetAddr = "getaddr"
-	CmdAddr    = "addr"
-	//CmdGetBlocks   = "getblocks"
-	CmdInv = "inv"
-	//CmdGetData     = "getdata"
-	CmdNotFound = "notfound"
-	//CmdBlock       = "block"     // Factoid-0 Block
-	//CmdTx          = "tx"        // Factoid-0 Tx
+	CmdVersion   = "version"
+	CmdVerAck    = "verack"
+	CmdGetAddr   = "getaddr"
+	CmdAddr      = "addr"
+	CmdInv       = "inv"
+	CmdNotFound  = "notfound"
 	CmdFBlock    = "FBlock"    // Factoid-1 Block
 	CmdFactoidTX = "factoidtx" // Factoid-1 Tx
-	//CmdGetHeaders  = "getheaders"
-	//CmdHeaders     = "headers"
-	CmdPing    = "ping"
-	CmdPong    = "pong"
-	CmdAlert   = "alert"
-	CmdMemPool = "mempool"
-	//CmdFilterAdd   = "filteradd"
-	//CmdFilterClear = "filterclear"
-	//CmdFilterLoad  = "filterload"
-	CmdReject = "reject"
-	// TODO remove CmdTestCred before production
-	//CmdTestCredit = "testcredit"
+	CmdPing      = "ping"
+	CmdPong      = "pong"
+	CmdAlert     = "alert"
+	CmdReject    = "reject"
 
-	// Factom additions:
-
-	// Factom downloads: block & entry
 	CmdGetDirBlocks  = "getdirblocks"
 	CmdDirInv        = "dirInv"
 	CmdGetDirData    = "getdirdata"
@@ -125,9 +110,6 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdAlert:
 		msg = &MsgAlert{}
-
-	case CmdMemPool:
-		msg = &MsgMemPool{}
 
 	case CmdReject:
 		msg = &MsgReject{}

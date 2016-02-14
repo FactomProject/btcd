@@ -312,19 +312,19 @@ func messageSummary(msg wire.Message) string {
 	case *wire.MsgAlert:
 		// No summary.
 
-	case *wire.MsgMemPool:
-		// No summary.
-		/*
-			case *wire.MsgTx:
-				hash, _ := msg.TxSha()
-				return fmt.Sprintf("hash %s, %d inputs, %d outputs, lock %s",
-					hash, len(msg.TxIn), len(msg.TxOut),
-					formatLockTime(msg.LockTime))
+	//case *wire.MsgMemPool:
+	// No summary.
+	/*
+		case *wire.MsgTx:
+			hash, _ := msg.TxSha()
+			return fmt.Sprintf("hash %s, %d inputs, %d outputs, lock %s",
+				hash, len(msg.TxIn), len(msg.TxOut),
+				formatLockTime(msg.LockTime))
 
-			case *wire.MsgBlock:
-				hash, _ := msg.BlockSha()
-				return fmt.Sprintf("hash %s, %d tx ", hash, len(msg.Transactions))
-		*/
+		case *wire.MsgBlock:
+			hash, _ := msg.BlockSha()
+			return fmt.Sprintf("hash %s, %d tx ", hash, len(msg.Transactions))
+	*/
 	case *wire.MsgInv:
 		return invSummary(msg.InvList)
 
