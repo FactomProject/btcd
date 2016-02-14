@@ -320,8 +320,6 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 		srvrLog.Infof("inbound peer: %s, state.peers.Len=%d", p, state.peers.Len())
 		p.Start()
 		// how about more than one inbound peer ???
-		p.server.federateServers.PushBack(p)
-		srvrLog.Debugf("Inbound peer as a new federate server: %s, total=%d", p, p.server.federateServers.Len())
 	} else {
 		state.outboundGroups[addrmgr.GroupKey(p.na)]++
 		if p.persistent {
@@ -332,7 +330,10 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 			srvrLog.Infof("outbound peer: %s, total=%d", p, state.outboundPeers.Len())
 		}
 	}
-
+	if p.nodeType == common.SERVER_NODE {
+		p.server.federateServers.PushBack(p)
+		srvrLog.Debugf("Add peer as a new federate server: %s, total=%d", p, p.server.federateServers.Len())
+	}
 	return true
 }
 
@@ -602,7 +603,7 @@ func (s *server) seedFromDNS() {
 	//return
 	//}
 
-	srvrLog.Infof("dnsSeeds: ", spew.Sdump(activeNetParams.dnsSeeds))
+	srvrLog.Infof("dnsSeeds: %s", spew.Sdump(activeNetParams.dnsSeeds))
 
 	for _, seeder := range activeNetParams.dnsSeeds {
 		go func(seeder string) {
@@ -674,7 +675,7 @@ func (s *server) peerHandler() {
 
 	// Start up persistent peers.
 	permanentPeers := cfg.ConnectPeers
-	srvrLog.Infof("permanentPeers: ", spew.Sdump(permanentPeers))
+	srvrLog.Infof("permanentPeers: %s", spew.Sdump(permanentPeers))
 	if len(permanentPeers) == 0 {
 		permanentPeers = cfg.AddPeers
 	}

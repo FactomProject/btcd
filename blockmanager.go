@@ -14,7 +14,6 @@ import (
 
 	"github.com/FactomProject/FactomCode/common"
 	cp "github.com/FactomProject/FactomCode/controlpanel"
-	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -733,7 +732,7 @@ func (b *blockManager) startSyncFactom(peers *list.List) {
 // syncing from.
 func (b *blockManager) isSyncCandidateFactom(p *peer) bool {
 	// Typically a peer is not a candidate for sync if it's not a Factom SERVER node,
-	if common.SERVER_NODE == util.ReadConfig().App.NodeMode {
+	if common.SERVER_NODE == factomConfig.App.NodeMode {
 		return true
 	}
 	return false

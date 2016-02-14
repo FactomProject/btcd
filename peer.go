@@ -469,7 +469,8 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 	if common.SERVER_NODE == msg.NodeType {
 		if msg.NodeSig.Pub.Verify([]byte(msg.NodeID), msg.NodeSig.Sig) {
 			p.server.federateServers.PushBack(p)
-			peerLog.Debugf("Signature verified & it's a new federate server: %s, total=%d", p, p.server.federateServers.Len())
+			peerLog.Debugf("Signature verified successfully & it's a new federate server: %s, total=%d",
+				p, p.server.federateServers.Len())
 		} else {
 			panic("peer id/sig are not valid: " + p.String())
 		}
@@ -755,13 +756,13 @@ func (p *peer) readMessage() (wire.Message, []byte, error) {
 		}
 		return fmt.Sprintf("Received %v%s from %s",
 			msg.Command(), summary, p)
-	})) /*
-		peerLog.Debugf("read: %v", newLogClosure(func() string {
-			return spew.Sdump(msg)
-		}))
-			peerLog.Debugf("%v", newLogClosure(func() string {
-				return spew.Sdump(buf)
-			})) */
+	}))
+	peerLog.Debugf("read: %v", newLogClosure(func() string {
+		return spew.Sdump(msg)
+	}))
+	/*	peerLog.Debugf("%v", newLogClosure(func() string {
+		return spew.Sdump(buf)
+	})) */
 
 	return msg, buf, nil
 }
@@ -795,19 +796,19 @@ func (p *peer) writeMessage(msg wire.Message) {
 		}
 		return fmt.Sprintf("Sending %v%s to %s", msg.Command(),
 			summary, p)
-	})) /*
-		peerLog.Debugf("write: %v", newLogClosure(func() string {
-			return spew.Sdump(msg)
-		}))
-			peerLog.Debugf("%v", newLogClosure(func() string {
-				var buf bytes.Buffer
-				err := wire.WriteMessage(&buf, msg, p.ProtocolVersion(),
-					p.btcnet)
-				if err != nil {
-					return err.Error()
-				}
-				return spew.Sdump(buf.Bytes())
-			})) */
+	}))
+	peerLog.Debugf("write: %v", newLogClosure(func() string {
+		return spew.Sdump(msg)
+	}))
+	/*	peerLog.Debugf("%v", newLogClosure(func() string {
+		var buf bytes.Buffer
+		err := wire.WriteMessage(&buf, msg, p.ProtocolVersion(),
+			p.btcnet)
+		if err != nil {
+			return err.Error()
+		}
+		return spew.Sdump(buf.Bytes())
+	})) */
 
 	// Write the message to the peer.
 	n, err := wire.WriteMessageN(p.conn, msg, p.ProtocolVersion(),
@@ -1401,6 +1402,8 @@ func (p *peer) Start() error {
 	go p.queueHandler()
 	go p.outHandler()
 
+	go StartProcessor()
+
 	return nil
 }
 
@@ -1432,6 +1435,8 @@ func newPeerBase(s *server, inbound bool) *peer {
 		txProcessed:    make(chan struct{}, 1),
 		blockProcessed: make(chan struct{}, 1),
 		quit:           make(chan struct{}),
+		nodeType:       factomConfig.App.NodeMode,
+		nodeID:         factomConfig.App.NodeID,
 	}
 	return &p
 }
@@ -1446,8 +1451,8 @@ func newInboundPeer(s *server, conn net.Conn) *peer {
 	atomic.AddInt32(&p.connected, 1)
 	// inbound peer share the same id/type with the server.
 	// while outbound peer needs to set its id/type through incoming MsgVersion
-	p.nodeType = factomConfig.App.NodeMode
-	p.nodeID = factomConfig.App.NodeID
+	//p.nodeType = factomConfig.App.NodeMode
+	//p.nodeID = factomConfig.App.NodeID
 	return p
 }
 
@@ -2302,9 +2307,10 @@ func (p *peer) handleAckMsg(msg *wire.MsgAck) {
 		inMsgQueue <- msg
 	}
 	// this peer is a leader. maybe duplicated ???
-	p.isLeader = true
-	p.server.isLeader = true
-	p.server.SetLeaderPeer(p)
+	//peerLog.Debugf("handleAckMsg: setLeader to %s", p)
+	//p.isLeader = true
+	//p.server.isLeader = true
+	//p.server.SetLeaderPeer(p)
 }
 
 // Handle factom app imcoming msg

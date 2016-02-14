@@ -38,7 +38,12 @@ var _ = (*block.FBlock)(nil)
 var _ = util.Trace
 
 var (
-	//db       database.Db        // database
+	localServer  *server
+	db           database.Db // database
+	factomConfig *util.FactomdConfig
+	inMsgQueue   = make(chan wire.FtmInternalMsg, 100) //incoming message queue for factom application messages
+	outMsgQueue  = make(chan wire.FtmInternalMsg, 100) //outgoing message queue for factom application messages
+
 	dchain   *common.DChain     //Directory Block Chain
 	ecchain  *common.ECChain    //Entry Credit Chain
 	achain   *common.AdminChain //Admin Chain
@@ -83,19 +88,20 @@ var (
 )
 
 // LoadConfigurations gets the configurations
-func LoadConfigurations(cfg *util.FactomdConfig) {
+func LoadConfigurations(fcfg *util.FactomdConfig) {
 	//setting the variables by the valued form the config file
-	dataStorePath = cfg.App.DataStorePath
-	ldbpath = cfg.App.LdbPath
-	directoryBlockInSeconds = cfg.App.DirectoryBlockInSeconds
-	nodeMode = cfg.App.NodeMode
-	serverPrivKeyHex = cfg.App.ServerPrivKey
-	cp.CP.SetPort(cfg.Controlpanel.Port)
+	factomConfig = fcfg
+	dataStorePath = factomConfig.App.DataStorePath
+	ldbpath = factomConfig.App.LdbPath
+	directoryBlockInSeconds = factomConfig.App.DirectoryBlockInSeconds
+	nodeMode = factomConfig.App.NodeMode
+	serverPrivKeyHex = factomConfig.App.ServerPrivKey
+	cp.CP.SetPort(factomConfig.Controlpanel.Port)
 }
 
-// Initialize the processor
+// InitProcessor initializes the processor
 func initProcessor() {
-	procLog.Infof("initProcessor: blockSyncing=%v", blockSyncing)
+	//LoadConfigurations()
 	initServerKeys()
 	fMemPool = new(ftmMemPool)
 	fMemPool.initFtmMemPool()
@@ -152,8 +158,7 @@ func initProcessor() {
 }
 
 // StartProcessor is started from factomd
-func StartProcessor(ldb database.Db) {
-	db = ldb
+func StartProcessor() {
 	initProcessor()
 	procLog.Info("StartProcessor: blockSyncing=", blockSyncing)
 
@@ -174,9 +179,47 @@ func StartProcessor(ldb database.Db) {
 	// Process msg from the incoming queue one by one
 	for {
 		select {
-		case msg := <-inMsgQueue:
-			if err := serveMsgRequest(msg); err != nil {
+		case inmsg := <-inMsgQueue:
+			if err := serveMsgRequest(inmsg); err != nil {
 				procLog.Error(err)
+			}
+
+		case msg := <-outMsgQueue:
+			switch msg.(type) {
+			case *wire.MsgInt_DirBlock:
+				// once it's done block syncing, this is only needed for CLIENT
+				// Use broadcast to exclude federate servers
+				// todo ???
+				dirBlock, _ := msg.(*wire.MsgInt_DirBlock)
+				iv := wire.NewInvVect(wire.InvTypeFactomDirBlock, dirBlock.ShaHash)
+				localServer.RelayInventory(iv, nil)
+				//msgDirBlock := &wire.MsgDirBlock{DBlk: dirBlock}
+				//excludedPeers := make([]*peer, 0, 32)
+				//for e := localServer.federateServers.Front(); e != nil; e = e.Next() {
+				//excludedPeers = append(excludedPeers, e.Value.(*peer))
+				//}
+				//s.BroadcastMessage(msgDirBlock, excludedPeers)
+
+			case wire.Message:
+				// verify if this wireMsg should be one of MsgEOM, MsgAck,
+				// commitEntry/chain, revealEntry/Chain and MsgDirBlockSig
+				// need to exclude all peers that are not federate servers
+				// todo ???
+				wireMsg, _ := msg.(wire.Message)
+				localServer.BroadcastMessage(wireMsg)
+				/*
+					if ClientOnly {
+						//fmt.Println("broadcasting from client.")
+						s.BroadcastMessage(wireMsg)
+					} else {
+						if _, ok := msg.(*wire.MsgAck); ok {
+							//fmt.Println("broadcasting from server.")
+							s.BroadcastMessage(wireMsg)
+						}
+					}*/
+
+			default:
+				panic(fmt.Sprintf("bad outMsgQueue message received: %v", msg))
 			}
 		}
 	}
@@ -244,7 +287,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 	case wire.CmdAck:
 		// only post-syncup followers need to deal with Ack
 		procLog.Infof("in case.CmdAck: blockSyncing=%v", blockSyncing)
-		if nodeMode != common.SERVER_NODE || localServer.IsLeader() || !blockSyncing {
+		if nodeMode != common.SERVER_NODE || localServer.IsLeader() || blockSyncing {
 			return nil
 		}
 		entry, _ := msg.(*wire.MsgAck)
@@ -275,6 +318,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		}
 		// only the leader need to deal with this and
 		// followers EOM will be driven by Ack of this EOM.
+		procLog.Infof("in case.CmdInt_EOM: localServer.IsLeader=%v", localServer.IsLeader())
 		if localServer.IsLeader() {
 			err := processLeaderEOM(msgEom)
 			if err != nil {
@@ -515,7 +559,8 @@ func processAck(msg *wire.MsgAck) error {
 	if msg.Type == wire.END_MINUTE_1 {
 		procLog.Infof("processAck: Ack.Height=%d, dchain.NextDBHeight=%d",
 			msg.Height, dchain.NextDBHeight)
-		if msg.Height < dchain.NextDBHeight {
+		//???
+		if msg.Height < dchain.NextDBHeight && blockSyncing {
 			blockSyncing = false
 			procLog.Info("** reset blockSyncing to FLASE")
 		}
@@ -555,17 +600,17 @@ func processAck(msg *wire.MsgAck) error {
 		fMemPool.assembleEomMessages(msg)
 	}
 	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
-
-	//???
-	// Update the next block height in dchain
-	if msg.Height > dchain.NextDBHeight {
-		dchain.NextDBHeight = msg.Height
-	}
-	//???
-	// Update the next block height in db
-	if int64(msg.Height) > db.FetchNextBlockHeightCache() {
-		db.UpdateNextBlockHeightCache(msg.Height)
-	}
+	/*
+		//???
+		// Update the next block height in dchain
+		if msg.Height > dchain.NextDBHeight {
+			dchain.NextDBHeight = msg.Height
+		}
+		//???
+		// Update the next block height in db
+		if int64(msg.Height) > db.FetchNextBlockHeightCache() {
+			db.UpdateNextBlockHeightCache(msg.Height)
+		}*/
 
 	if msg.Type == wire.END_MINUTE_10 {
 		err = buildBlocks() //broadcast new dir block sig

@@ -5,14 +5,16 @@
 package btcd
 
 import (
-	//	"errors"
-	//	"fmt"
+	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	//	"runtime"
 	"runtime/pprof"
+
+	"github.com/FactomProject/FactomCode/common"
+	cp "github.com/FactomProject/FactomCode/controlpanel"
+	"github.com/FactomProject/FactomCode/database"
 )
 
 var (
@@ -110,7 +112,8 @@ func btcdMain(serverChan chan<- *server) error {
 	}
 
 	// Factom Additions BEGIN
-	factomForkInit(server)
+	//factomForkInit(server)
+	localServer = server
 
 	// Factom Additions END
 
@@ -131,4 +134,35 @@ func btcdMain(serverChan chan<- *server) error {
 	<-shutdownChannel
 	btcdLog.Info("Shutdown complete")
 	return nil
+}
+
+func StartBtcd(ldb database.Db) {
+	db = ldb
+	//factomConfig = fcfg
+	if common.SERVER_NODE != factomConfig.App.NodeMode {
+		ClientOnly = true
+	}
+
+	if ClientOnly {
+		cp.CP.AddUpdate(
+			"FactomMode", // tag
+			"system",     // Category
+			"Factom Mode: Full Node (Client)", // Title
+			"", // Message
+			0)
+		fmt.Println("\n\n>>>>>>>>>>>>>>>>>  CLIENT MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
+	} else {
+		cp.CP.AddUpdate(
+			"FactomMode",                    // tag
+			"system",                        // Category
+			"Factom Mode: Federated Server", // Title
+			"", // Message
+			0)
+		fmt.Println("\n\n>>>>>>>>>>>>>>>>>  SERVER MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
+	}
+
+	// Work around defer not working after os.Exit()
+	if err := btcdMain(nil); err != nil {
+		os.Exit(1)
+	}
 }
