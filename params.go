@@ -4,19 +4,63 @@
 
 package btcd
 
-import (
-	"github.com/FactomProject/btcd/chaincfg"
-	"github.com/FactomProject/btcd/wire"
-)
+import "github.com/FactomProject/btcd/wire"
 
 // activeNetParams is a pointer to the parameters specific to the
 // currently active bitcoin network.
 var activeNetParams = &mainNetParams
 
+// Params defines a Bitcoin network by its parameters.  These parameters may be
+// used by Bitcoin applications to differentiate networks as well as addresses
+// and keys for one network from those intended for use on another network.
+type Params struct {
+	Name        string
+	Net         wire.FactomNet
+	DefaultPort string
+}
+
+// MainNetParams defines the network parameters for the main Bitcoin network.
+var MainNetParams = Params{
+	Name:        "mainnet",
+	Net:         wire.MainNet,
+	DefaultPort: "12204", //"8108",
+}
+
+// RegressionNetParams defines the network parameters for the regression test
+// Bitcoin network.  Not to be confused with the test Bitcoin network (version
+// 3), this network is sometimes simply called "testnet".
+var RegressionNetParams = Params{
+	Name:        "devnet",
+	Net:         wire.TestNet,
+	DefaultPort: "12204", //"18444",
+}
+
+// TestNet3Params defines the network parameters for the test Bitcoin network
+// (version 3).  Not to be confused with the regression test network, this
+// network is sometimes simply called "testnet".
+var TestNet3Params = Params{
+	Name:        "testnet3",
+	Net:         wire.TestNet3,
+	DefaultPort: "18108",
+}
+
+// SimNetParams defines the network parameters for the simulation test Bitcoin
+// network.  This network is similar to the normal test network except it is
+// intended for private use within a group of individuals doing simulation
+// testing.  The functionality is intended to differ in that the only nodes
+// which are specifically specified are used to create the network rather than
+// following normal discovery rules.  This is important as otherwise it would
+// just turn into another public testnet.
+var SimNetParams = Params{
+	Name:        "simnet",
+	Net:         wire.SimNet,
+	DefaultPort: "18555",
+}
+
 // params is used to group parameters for various networks such as the main
 // network and test networks.
 type params struct {
-	*chaincfg.Params
+	*Params
 	rpcPort  string
 	dnsSeeds []string
 }
@@ -28,10 +72,10 @@ type params struct {
 // it does not handle on to btcd.  This approach allows the wallet process
 // to emulate the full reference implementation RPC API.
 var mainNetParams = params{
-	Params:   &chaincfg.MainNetParams,
-	rpcPort:  "8384",
+	Params:  &MainNetParams,
+	rpcPort: "8384",
 	dnsSeeds: []string{
-	//"factom.network", // uncomment it when release
+		"52.27.143.38",
 	},
 }
 
@@ -40,17 +84,24 @@ var mainNetParams = params{
 // than the reference implementation - see the mainNetParams comment for
 // details.
 var regressionNetParams = params{
-	Params:   &chaincfg.RegressionNetParams,
+	Params:   &RegressionNetParams,
 	rpcPort:  "18334",
 	dnsSeeds: []string{},
+}
+
+// testNet3Params contains parameters specific to the test network (version 3)
+// (wire.TestNet3).  NOTE: The RPC port is intentionally different than the
+// reference implementation - see the mainNetParams comment for details.
+var testNet3Params = params{
+	Params:  &TestNet3Params,
+	rpcPort: "18334",
 }
 
 // simNetParams contains parameters specific to the simulation test network
 // (wire.SimNet).
 var simNetParams = params{
-	Params:   &chaincfg.SimNetParams,
-	rpcPort:  "18556",
-	dnsSeeds: []string{}, // NOTE: There must NOT be any seeds.
+	Params:  &SimNetParams,
+	rpcPort: "18556",
 }
 
 // netName returns the name used when referring to a bitcoin network.  At the

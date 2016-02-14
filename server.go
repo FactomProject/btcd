@@ -22,7 +22,7 @@ import (
 
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/btcd/addrmgr"
-	"github.com/FactomProject/btcd/chaincfg"
+	//"github.com/FactomProject/btcd/chaincfg"
 	"github.com/FactomProject/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -111,7 +111,7 @@ type updatePeerHeightsMsg struct {
 type server struct {
 	nonce         uint64
 	listeners     []net.Listener
-	chainParams   *chaincfg.Params
+	chainParams   *Params
 	started       int32      // atomic
 	shutdown      int32      // atomic
 	shutdownSched int32      // atomic
@@ -1196,7 +1196,7 @@ out:
 // newServer returns a new btcd server configured to listen on addr for the
 // bitcoin network type specified by chainParams.  Use start to begin accepting
 // connections from peers.
-func newServer(listenAddrs []string, chainParams *chaincfg.Params) (*server, error) {
+func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 	nonce, err := wire.RandomUint64()
 	if err != nil {
 		return nil, err

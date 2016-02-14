@@ -18,12 +18,11 @@ import (
 	"time"
 
 	"github.com/FactomProject/FactomCode/common"
+	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/FactomCode/util"
 	"github.com/FactomProject/btcd/addrmgr"
-	"github.com/FactomProject/btcd/blockchain"
 	"github.com/FactomProject/btcd/wire"
 	"github.com/FactomProject/go-socks/socks"
-	"github.com/btcsuitereleases/btcd/database"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -151,7 +150,7 @@ type outMsg struct {
 // to push messages to the peer.  Internally they use QueueMessage.
 type peer struct {
 	server     *server
-	btcnet     wire.BitcoinNet
+	fctnet     wire.FactomNet
 	started    int32
 	connected  int32
 	disconnect int32 // only to be used atomically
@@ -737,7 +736,7 @@ func (p *peer) handlePongMsg(msg *wire.MsgPong) {
 // readMessage reads the next bitcoin message from the peer with logging.
 func (p *peer) readMessage() (wire.Message, []byte, error) {
 	n, msg, buf, err := wire.ReadMessageN(p.conn, p.ProtocolVersion(),
-		p.btcnet)
+		p.fctnet)
 	p.StatsMtx.Lock()
 	p.bytesReceived += uint64(n)
 	p.StatsMtx.Unlock()
@@ -803,7 +802,7 @@ func (p *peer) writeMessage(msg wire.Message) {
 	/*	peerLog.Debugf("%v", newLogClosure(func() string {
 		var buf bytes.Buffer
 		err := wire.WriteMessage(&buf, msg, p.ProtocolVersion(),
-			p.btcnet)
+			p.fctnet)
 		if err != nil {
 			return err.Error()
 		}
@@ -812,7 +811,7 @@ func (p *peer) writeMessage(msg wire.Message) {
 
 	// Write the message to the peer.
 	n, err := wire.WriteMessageN(p.conn, msg, p.ProtocolVersion(),
-		p.btcnet)
+		p.fctnet)
 	p.StatsMtx.Lock()
 	p.bytesSent += uint64(n)
 	p.StatsMtx.Unlock()
@@ -1420,7 +1419,7 @@ func newPeerBase(s *server, inbound bool) *peer {
 	p := peer{
 		server:          s,
 		protocolVersion: maxProtocolVersion,
-		btcnet:          s.chainParams.Net,
+		fctnet:          s.chainParams.Net,
 		services:        wire.SFNodeNetwork,
 		inbound:         inbound,
 		knownAddresses:  make(map[string]struct{}),
@@ -2058,7 +2057,7 @@ func (p *peer) pushDirBlockMsg(sha *wire.ShaHash, doneChan, waitChan chan struct
 
 // PushGetDirBlocksMsg sends a getdirblocks message for the provided block locator
 // and stop hash.  It will ignore back-to-back duplicate requests.
-func (p *peer) PushGetDirBlocksMsg(locator blockchain.BlockLocator, stopHash *wire.ShaHash) error {
+func (p *peer) PushGetDirBlocksMsg(locator BlockLocator, stopHash *wire.ShaHash) error {
 
 	// Extract the begin hash from the block locator, if one was specified,
 	// to use for filtering duplicate getblocks requests.

@@ -70,10 +70,10 @@ const (
 	CmdCommitEntry = "commitentry"
 	CmdRevealEntry = "revealentry"
 
-	CmdAck = "confirmation"
-	CmdMHashReveal     = "mhashreveal"
-	CmdEOM             = "eom"
-	CmdDirBlockSig     = "dirblocksig"
+	CmdAck         = "confirmation"
+	CmdMHashReveal = "mhashreveal"
+	CmdEOM         = "eom"
+	CmdDirBlockSig = "dirblocksig"
 )
 
 // MaxAppMsgPayload is the maximum bytes a factom app message can be in bytes.
@@ -194,10 +194,10 @@ func makeEmptyMessage(command string) (Message, error) {
 
 // messageHeader defines the header structure for all bitcoin protocol messages.
 type messageHeader struct {
-	magic    BitcoinNet // 4 bytes
-	command  string     // 12 bytes
-	length   uint32     // 4 bytes
-	checksum [4]byte    // 4 bytes
+	magic    FactomNet // 4 bytes
+	command  string    // 12 bytes
+	length   uint32    // 4 bytes
+	checksum [4]byte   // 4 bytes
 }
 
 // readMessageHeader reads a bitcoin message header from r.
@@ -247,7 +247,7 @@ func discardInput(r io.Reader, n uint32) {
 // WriteMessageN writes a bitcoin Message to w including the necessary header
 // information and returns the number of bytes written.    This function is the
 // same as WriteMessage except it also returns the number of bytes written.
-func WriteMessageN(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) (int, error) {
+func WriteMessageN(w io.Writer, msg Message, pver uint32, btcnet FactomNet) (int, error) {
 	totalBytes := 0
 
 	// Enforce max command size.
@@ -323,7 +323,7 @@ func WriteMessageN(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) (in
 // doesn't return the number of bytes written.  This function is mainly provided
 // for backwards compatibility with the original API, but it's also useful for
 // callers that don't care about byte counts.
-func WriteMessage(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) error {
+func WriteMessage(w io.Writer, msg Message, pver uint32, btcnet FactomNet) error {
 	_, err := WriteMessageN(w, msg, pver, btcnet)
 	return err
 }
@@ -333,7 +333,7 @@ func WriteMessage(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) erro
 // bytes read in addition to the parsed Message and raw bytes which comprise the
 // message.  This function is the same as ReadMessage except it also returns the
 // number of bytes read.
-func ReadMessageN(r io.Reader, pver uint32, btcnet BitcoinNet) (int, Message, []byte, error) {
+func ReadMessageN(r io.Reader, pver uint32, btcnet FactomNet) (int, Message, []byte, error) {
 	totalBytes := 0
 	n, hdr, err := readMessageHeader(r)
 	if err != nil {
@@ -421,7 +421,7 @@ func ReadMessageN(r io.Reader, pver uint32, btcnet BitcoinNet) (int, Message, []
 // from ReadMessageN in that it doesn't return the number of bytes read.  This
 // function is mainly provided for backwards compatibility with the original
 // API, but it's also useful for callers that don't care about byte counts.
-func ReadMessage(r io.Reader, pver uint32, btcnet BitcoinNet) (Message, []byte, error) {
+func ReadMessage(r io.Reader, pver uint32, btcnet FactomNet) (Message, []byte, error) {
 	_, msg, buf, err := ReadMessageN(r, pver, btcnet)
 	return msg, buf, err
 }
