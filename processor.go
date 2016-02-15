@@ -302,6 +302,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 			return nil
 		}
 		dbs, _ := msg.(*wire.MsgDirBlockSig)
+		fmt.Printf("MsgDirBlockSig: %s\n", spew.Sdump(dbs))
 		// to simplify this, use the next wire.END_MINUTE_1 to trigger signature comparison. ???
 		fMemPool.addDirBlockSig(dbs)
 
@@ -309,7 +310,6 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		if localServer == nil {
 			return nil
 		}
-		fmt.Println("number of federate servers: ", localServer.FederateServerCount())
 
 		msgEom, _ := msg.(*wire.MsgInt_EOM)
 		var singleServerMode = false
@@ -317,6 +317,8 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		if localServer.FederateServerCount() == 1 {
 			singleServerMode = true
 		}
+		fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
+			"singleServerMode=", singleServerMode)
 		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
 		// to trigger signature comparison of last round.
 		// todo: when to start? can NOT do this for the first EOM_1 ???
@@ -332,7 +334,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		}
 		// only the leader need to deal with this and
 		// followers EOM will be driven by Ack of this EOM.
-		procLog.Infof("in case.CmdInt_EOM: localServer.IsLeader=%v", localServer.IsLeader())
+		fmt.Printf("in case.CmdInt_EOM: localServer.IsLeader=%v", localServer.IsLeader())
 		if localServer.IsLeader() || singleServerMode {
 			err := processLeaderEOM(msgEom)
 			if err != nil {
@@ -483,6 +485,7 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 	common.FactoidState.EndOfPeriod(int(msgEom.EOM_Type))
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
 		// Process from Orphan pool before the end of process list
+		fmt.Println("processLeaderEOM: END_MINUTE_10: before processFromOrphanPool")
 		processFromOrphanPool()
 	}
 
@@ -499,6 +502,7 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 
 	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
+		fmt.Println("processLeaderEOM: END_MINUTE_10: before buildBlocks")
 		err = buildBlocks() //broadcast new dir block sig
 		if err != nil {
 			return err
@@ -512,16 +516,18 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 func processDirBlockSig() error {
 	dbsigs := fMemPool.getDirBlockSigPool()
 	if len(dbsigs) == 0 {
+		fmt.Println("no dir block sig in mempool.")
 		return nil
 	}
-	totalServerNum := localServer.federateServers.Len()
-	procLog.Infof("By EOM_1, there're %d dirblock signatures arrived out of %d federate servers. %s",
+	totalServerNum := localServer.FederateServerCount()
+	fmt.Printf("By EOM_1, there're %d dirblock signatures arrived out of %d federate servers.",
 		len(dbsigs), totalServerNum)
 	procLog.Info(spew.Sdump(dbsigs))
 
 	dgsMap := make(map[string][]*wire.MsgDirBlockSig)
 	for _, v := range dbsigs {
 		if !v.Sig.Pub.Verify(v.DirBlockHash.Bytes(), v.Sig.Sig) {
+			fmt.Println("could not verify sig. dir block hash: ", v.DirBlockHash)
 			continue
 		}
 		key := v.DirBlockHash.String()
@@ -535,16 +541,17 @@ func processDirBlockSig() error {
 
 	var winner *wire.MsgDirBlockSig
 	for k, v := range dgsMap {
-		procLog.Infof("key=%s, number=%d", k, len(v))
+		fmt.Printf("key=%s, number=%d\n", k, len(v))
 		n := float32(len(v) / totalServerNum)
 		if n > float32(0.5) {
 			winner = v[0]
 			break
 		} else if n == float32(0.5) {
 			//to-do: choose what leader has got to break the tie
-			procLog.Infof("Got a tie, and need to choose what the leader has for the winner of dirblock sig.")
+			fmt.Println("Got a tie, and need to choose what the leader has for the winner of dirblock sig.")
 			serverID := localServer.GetLeaderPeer().GetNodeID()
 			for _, d := range v {
+				fmt.Println("serverID=", serverID, ", fed server id=", d.SourceNodeID)
 				if serverID == d.SourceNodeID {
 					winner = d
 					break
@@ -571,26 +578,28 @@ func processAck(msg *wire.MsgAck) error {
 	procLog.Infof("processAck: %s", spew.Sdump(msg))
 	// for followers only,
 	if msg.Type == wire.END_MINUTE_1 {
-		procLog.Infof("processAck: Ack.Height=%d, dchain.NextDBHeight=%d",
+		fmt.Printf("processAck: Ack.Height=%d, dchain.NextDBHeight=%d",
 			msg.Height, dchain.NextDBHeight)
 		//???
 		if msg.Height == dchain.NextDBHeight && blockSyncing {
 			blockSyncing = false
-			procLog.Info("** reset blockSyncing to FLASE")
+			fmt.Println("** reset blockSyncing to FLASE")
 		}
 	}
 	// Validate the signiture
 	bytes, err := msg.GetBinaryForSignature()
 	if err != nil {
+		fmt.Println("error in GetBinaryForSignature", err.Error())
 		return err
 	}
 	//todo: must use the peer's, not server's, public key to verify signature here
 	if !serverPubKey.Verify(bytes, &msg.Signature) {
 		//to-do
 		//return errors.New(fmt.Sprintf("Invalid signature in Ack = %s\n", spew.Sdump(msg)))
+		fmt.Println("verify dir block signature: FAILED")
 	}
-	procLog.Infof("processor.processAck: Ack = %s\n", spew.Sdump(msg))
-	procLog.Infof("msg.Height=%d, dchain.NextDBHeight=%d, db.FetchNextBlockHeightCache()=%d\n",
+	fmt.Println("verify dir block signature: SUCCESS")
+	fmt.Printf("msg.Height=%d, dchain.NextDBHeight=%d, db.FetchNextBlockHeightCache()=%d\n",
 		msg.Height, dchain.NextDBHeight, db.FetchNextBlockHeightCache())
 
 	missingMsg := fMemPool.addAck(msg)
@@ -598,6 +607,7 @@ func processAck(msg *wire.MsgAck) error {
 		//request missing acks from Leader
 		//how to coordinate new processAck when missing acks come ???
 		//
+		fmt.Println("missing msg: ", spew.Sdump(missingMsg))
 	}
 
 	var missingAcks []*wire.MsgAck
@@ -609,8 +619,10 @@ func processAck(msg *wire.MsgAck) error {
 			//how to coordinate new processAck when missing acks come ???
 			//
 		}
+		fmt.Printf("missing Acks: %d, %s", len(missingAcks), spew.Sdump(missingAcks))
 	}
 	if msg.Type == wire.END_MINUTE_10 && missingMsg == nil && len(missingAcks) == 0 {
+		fmt.Println("assembleEomMessages")
 		fMemPool.assembleEomMessages(msg)
 	}
 	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
@@ -1432,6 +1444,10 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 		fmt.Println("dchain.NextDBHeight: ", dchain.NextDBHeight)
 		// get the previous directory block from db
 		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
+		//????
+		if dbBlock == nil {
+			dbBlock, _ = db.FetchDBlockByHeight(dchain.NextDBHeight - 2)
+		}
 		fmt.Printf("SignDirBlock: dbBlock from db=%s\n", spew.Sdump(dbBlock))
 		fmt.Printf("SignDirBlock: new dbBlock=%s\n", spew.Sdump(newdb))
 		dbHeaderBytes, _ := dbBlock.Header.MarshalBinary()

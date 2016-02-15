@@ -46,7 +46,7 @@ func processDirBlock(msg *wire.MsgDirBlock) error {
 	//Add it to mem pool before saving it in db
 	fMemPool.addBlockMsg(msg, strconv.Itoa(int(msg.DBlk.Header.DBHeight))) // store in mempool with the height as the key
 
-	procLog.Debug("SyncUp: MsgDirBlock DBHeight=", msg.DBlk.Header.DBHeight)
+	//procLog.Debug("SyncUp: MsgDirBlock DBHeight=", msg.DBlk.Header.DBHeight)
 	cp.CP.AddUpdate(
 		"DBSyncUp", // tag
 		"Status",   // Category
@@ -70,7 +70,7 @@ func processFBlock(msg *wire.MsgFBlock) error {
 	//Add it to mem pool before saving it in db
 	fMemPool.addBlockMsg(msg, string(key)) // stored in mem pool with the MR as the key
 
-	procLog.Debug("SyncUp: MsgFBlock DBHeight=", msg.SC.GetDBHeight())
+	//procLog.Debug("SyncUp: MsgFBlock DBHeight=", msg.SC.GetDBHeight())
 
 	return nil
 
@@ -92,7 +92,7 @@ func processABlock(msg *wire.MsgABlock) error {
 	}
 	fMemPool.addBlockMsg(msg, abHash.String()) // store in mem pool with ABHash as key
 
-	procLog.Debug("SyncUp: MsgABlock DBHeight=", msg.ABlk.Header.DBHeight)
+	//procLog.Debug("SyncUp: MsgABlock DBHeight=", msg.ABlk.Header.DBHeight)
 
 	return nil
 }
@@ -113,7 +113,7 @@ func procesECBlock(msg *wire.MsgECBlock) error {
 	}
 	fMemPool.addBlockMsg(msg, hash.String())
 
-	procLog.Debug("SyncUp: MsgCBlock DBHeight=", msg.ECBlock.Header.EBHeight)
+	//procLog.Debug("SyncUp: MsgCBlock DBHeight=", msg.ECBlock.Header.EBHeight)
 
 	return nil
 }
@@ -138,7 +138,7 @@ func processEBlock(msg *wire.MsgEBlock) error {
 	}
 	fMemPool.addBlockMsg(msg, keyMR.String()) // store it in mem pool with MR as the key
 
-	procLog.Debug("SyncUp: MsgEBlock DBHeight=", msg.EBlk.Header.EBHeight)
+	//procLog.Debug("SyncUp: MsgEBlock DBHeight=", msg.EBlk.Header.EBHeight)
 
 	return nil
 }
@@ -156,7 +156,7 @@ func processEntry(msg *wire.MsgEntry) error {
 	h := msg.Entry.Hash()
 	fMemPool.addBlockMsg(msg, h.String()) // store it in mem pool with hash as the key
 
-	procLog.Debug("SyncUp: MsgEntry hash=", msg.Entry.Hash())
+	//procLog.Debug("SyncUp: MsgEntry hash=", msg.Entry.Hash())
 
 	return nil
 }
@@ -167,7 +167,7 @@ func validateAndStoreBlocks(fMemPool *ftmMemPool, db database.Db, dchain *common
 	var sleeptime int
 	var dblk *common.DirectoryBlock
 
-	procLog.Info("in validateAndStoreBlocks")
+	//procLog.Info("in validateAndStoreBlocks")
 	for true {
 		dblk = nil
 		_, myDBHeight, _ = db.FetchBlockHeightCache()
@@ -205,7 +205,7 @@ func validateAndStoreBlocks(fMemPool *ftmMemPool, db database.Db, dchain *common
 
 // Validate the new blocks in mem pool and store them in db
 func validateBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db database.Db) bool {
-	procLog.Info("in validateBlocksFromMemPool")
+	//procLog.Info("in validateBlocksFromMemPool")
 
 	// Validate the genesis block
 	if b.Header.DBHeight == 0 {
@@ -265,7 +265,7 @@ func validateBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, d
 // Validate the new blocks in mem pool and store them in db
 // Need to make a batch insert in db in milestone 2
 func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db database.Db) error {
-	procLog.Info("in storeBlocksFromMemPool")
+	//procLog.Info("in storeBlocksFromMemPool")
 
 	for _, dbEntry := range b.DBEntries {
 		switch dbEntry.ChainID.String() {
@@ -356,7 +356,7 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 
 // Validate the new blocks in mem pool and store them in db
 func deleteBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool) error {
-	procLog.Info("in deleteBlocksFromMemPool")
+	//procLog.Info("in deleteBlocksFromMemPool")
 	for _, dbEntry := range b.DBEntries {
 		switch dbEntry.ChainID.String() {
 		case ecchain.ChainID.String():
