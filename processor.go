@@ -1064,6 +1064,8 @@ func buildGenesisBlocks() error {
 			"\nGenesis block hash found:    " + dbBlock.DBHash.String() + "\n")
 	}
 
+	saveBlocks(dbBlock, aBlock, cBlock, FBlock, nil)
+
 	exportDChain(dchain)
 
 	SignDirectoryBlock(dbBlock)

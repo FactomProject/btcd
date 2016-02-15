@@ -468,20 +468,20 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 	if common.SERVER_NODE == msg.NodeType {
 		if msg.NodeSig.Pub.Verify([]byte(msg.NodeID), msg.NodeSig.Sig) {
 			p.server.federateServers.PushBack(p)
-			peerLog.Debugf("Signature verified successfully & it's a new federate server: %s, total=%d",
-				p, p.server.federateServers.Len())
+			peerLog.Debugf("Signature verified successfully & add it as a new federate server: %s, total=%d",
+				p, p.server.federateServers.Len()+1) //federate servers include self (+1)
 		} else {
 			panic("peer id/sig are not valid: " + p.String())
 		}
 	}
 	// inbound peer share the same id/type with the server.
 	// while outbound peer needs to set its id/type through incoming MsgVersion
-	if !p.inbound {
-		p.nodeType = msg.NodeType
-		p.nodeID = msg.NodeID
-		p.pubKey = msg.NodeSig.Pub
-		peerLog.Info("update outbound peer id/type info: ", p)
-	}
+	//if !p.inbound {
+	p.nodeType = msg.NodeType
+	p.nodeID = msg.NodeID
+	p.pubKey = msg.NodeSig.Pub
+	peerLog.Info("set peer id/type info: ", p)
+	//}
 
 	// Inbound connections.
 	if p.inbound {
@@ -1395,7 +1395,7 @@ func (p *peer) Start() error {
 	go p.queueHandler()
 	go p.outHandler()
 
-	go StartProcessor()
+	//go StartProcessor()
 
 	return nil
 }
@@ -1428,8 +1428,8 @@ func newPeerBase(s *server, inbound bool) *peer {
 		txProcessed:    make(chan struct{}, 1),
 		blockProcessed: make(chan struct{}, 1),
 		quit:           make(chan struct{}),
-		nodeType:       factomConfig.App.NodeMode,
-		nodeID:         factomConfig.App.NodeID,
+		//nodeType:       factomConfig.App.NodeMode,
+		//nodeID:         factomConfig.App.NodeID,
 	}
 	return &p
 }
@@ -2299,11 +2299,14 @@ func (p *peer) handleAckMsg(msg *wire.MsgAck) {
 	if !ClientOnly {
 		inMsgQueue <- msg
 	}
-	// this peer is a leader. maybe duplicated ???
-	//peerLog.Debugf("handleAckMsg: setLeader to %s", p)
-	//p.isLeader = true
-	//p.server.isLeader = true
-	//p.server.SetLeaderPeer(p)
+	// this peer is a leader Peer. update it if necessary
+	peerLog.Debugf("handleAckMsg: current Leader Peer:%s, new leader peer: %s",
+		p.server.GetLeaderPeer(), p)
+	if p != p.server.GetLeaderPeer() {
+		peerLog.Debugf("handleAckMsg: set new Leader Peer to %s", p)
+		p.isLeader = true
+		p.server.SetLeaderPeer(p)
+	}
 }
 
 // Handle factom app imcoming msg

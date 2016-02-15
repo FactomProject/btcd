@@ -330,10 +330,6 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 			srvrLog.Infof("outbound peer: %s, total=%d", p, state.outboundPeers.Len())
 		}
 	}
-	if p.nodeType == common.SERVER_NODE {
-		p.server.federateServers.PushBack(p)
-		srvrLog.Debugf("Add peer as a new federate server: %s, total=%d", p, p.server.federateServers.Len())
-	}
 	return true
 }
 
@@ -1012,6 +1008,9 @@ func (s *server) Start() {
 	// managers.
 	s.wg.Add(1)
 	go s.peerHandler()
+
+	s.wg.Add(1)
+	go StartProcessor()
 
 	if s.nat != nil {
 		s.wg.Add(1)
