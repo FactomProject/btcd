@@ -320,8 +320,13 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
 		// to trigger signature comparison of last round.
 		// todo: when to start? can NOT do this for the first EOM_1 ???
-		if msgEom.EOM_Type == wire.END_MINUTE_1 && !singleServerMode {
-			processDirBlockSig()
+		if msgEom.EOM_Type == wire.END_MINUTE_1 {
+			if !singleServerMode {
+				processDirBlockSig()
+			} else {
+				// no need to check dir block sig but need to save it
+				go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+			}
 		}
 		// only the leader need to deal with this and
 		// followers EOM will be driven by Ack of this EOM.
@@ -664,7 +669,7 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 
 		// Add to MyPL if Server Node
 		//if nodeMode == common.SERVER_NODE {
-		if localServer.IsLeader() {
+		if localServer.IsLeader() || localServer.federateServers.Len() == 1 {
 			if plMgr.IsMyPListExceedingLimit() {
 				procLog.Info("Exceeding MyProcessList size limit!")
 				return fMemPool.addOrphanMsg(msg, h)
@@ -782,7 +787,7 @@ func processCommitEntry(msg *wire.MsgCommitEntry) error {
 
 	// Server: add to MyPL
 	//if nodeMode == common.SERVER_NODE {
-	if localServer.IsLeader() {
+	if localServer.IsLeader() || localServer.federateServers.Len() == 1 {
 
 		// deduct the entry credits from the eCreditMap
 		eCreditMap[string(c.ECPubKey[:])] -= int32(c.Credits)
@@ -835,7 +840,7 @@ func processCommitChain(msg *wire.MsgCommitChain) error {
 
 	// Server: add to MyPL
 	//if nodeMode == common.SERVER_NODE {
-	if localServer.IsLeader() {
+	if localServer.IsLeader() || localServer.federateServers.Len() == 1 {
 		// deduct the entry credits from the eCreditMap
 		eCreditMap[string(c.ECPubKey[:])] -= int32(c.Credits)
 
@@ -1403,7 +1408,7 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 	db.UpdateNextBlockHeightCache(dchain.NextDBHeight)
 	exportDBlock(dblock)
 
-	if localServer.isLeader {
+	if localServer.isLeader || localServer.federateServers.Len() == 1 {
 		anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(dblock))
 		go anchor.SendRawTransactionToBTC(dblock.KeyMR, dblock.Header.DBHeight)
 		//placeAnchor(dbBlock)
