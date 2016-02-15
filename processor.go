@@ -309,17 +309,24 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		if localServer == nil {
 			return nil
 		}
+		fmt.Println("number of federate servers: ", localServer.federateServers.Len())
+
+		msgEom, _ := msg.(*wire.MsgInt_EOM)
+		var singleServerMode = false
+		// single server mode
+		if localServer.federateServers.Len() == 1 {
+			singleServerMode = true
+		}
 		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
 		// to trigger signature comparison of last round.
 		// todo: when to start? can NOT do this for the first EOM_1 ???
-		msgEom, _ := msg.(*wire.MsgInt_EOM)
-		if msgEom.EOM_Type == wire.END_MINUTE_1 {
+		if msgEom.EOM_Type == wire.END_MINUTE_1 && !singleServerMode {
 			processDirBlockSig()
 		}
 		// only the leader need to deal with this and
 		// followers EOM will be driven by Ack of this EOM.
 		procLog.Infof("in case.CmdInt_EOM: localServer.IsLeader=%v", localServer.IsLeader())
-		if localServer.IsLeader() {
+		if localServer.IsLeader() || singleServerMode {
 			err := processLeaderEOM(msgEom)
 			if err != nil {
 				return err
