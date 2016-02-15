@@ -309,12 +309,12 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		if localServer == nil {
 			return nil
 		}
-		fmt.Println("number of federate servers: ", localServer.federateServers.Len())
+		fmt.Println("number of federate servers: ", localServer.FederateServerCount())
 
 		msgEom, _ := msg.(*wire.MsgInt_EOM)
 		var singleServerMode = false
 		// single server mode
-		if localServer.federateServers.Len() == 1 {
+		if localServer.FederateServerCount() == 1 {
 			singleServerMode = true
 		}
 		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
@@ -325,7 +325,9 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 				processDirBlockSig()
 			} else {
 				// no need to check dir block sig but need to save it
-				go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+				if newDBlock != nil {
+					go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+				}
 			}
 		}
 		// only the leader need to deal with this and
@@ -1165,6 +1167,9 @@ func buildBlocks() error {
 // build blocks from a process lists
 func buildFromProcessList(pl *consensus.ProcessList) error {
 	for _, pli := range pl.GetPLItems() {
+		if pli == nil {
+			continue
+		}
 		if pli.Ack.Type == wire.ACK_COMMIT_CHAIN {
 			buildCommitChain(pli.Msg.(*wire.MsgCommitChain))
 		} else if pli.Ack.Type == wire.ACK_FACTOID_TX {
@@ -1220,7 +1225,7 @@ func newEntryCreditBlock(chain *common.ECChain) *common.ECBlock {
 	block := chain.NextBlock
 
 	if chain.NextBlockHeight != dchain.NextDBHeight {
-		panic("Entry Credit Block height does not match Directory Block height:" + string(dchain.NextDBHeight))
+		procLog.Info("Entry Credit Block height does not match Directory Block height:" + string(dchain.NextDBHeight))
 	}
 
 	block.BuildHeader()
@@ -1424,10 +1429,11 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 	// Only Servers can write the anchor to Bitcoin network
 	if nodeMode == common.SERVER_NODE && dchain.NextDBHeight > 0 { //&& localServer.isLeader {
+		fmt.Println("dchain.NextDBHeight: ", dchain.NextDBHeight)
 		// get the previous directory block from db
 		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
-		procLog.Infof("SignDirBlock: dbBlock from db=%s", spew.Sdump(dbBlock))
-		procLog.Infof("SignDirBlock: new dbBlock=%s", spew.Sdump(newdb))
+		fmt.Printf("SignDirBlock: dbBlock from db=%s\n", spew.Sdump(dbBlock))
+		fmt.Printf("SignDirBlock: new dbBlock=%s\n", spew.Sdump(newdb))
 		dbHeaderBytes, _ := dbBlock.Header.MarshalBinary()
 		identityChainID := common.NewHash() // 0 ID for milestone 1 ????
 		sig := serverPrivKey.Sign(dbHeaderBytes)

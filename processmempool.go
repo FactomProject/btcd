@@ -34,9 +34,9 @@ func (mp *ftmMemPool) initFtmMemPool() error {
 	mp.pool = make(map[wire.ShaHash]wire.Message)
 	mp.orphans = make(map[wire.ShaHash]wire.Message)
 	mp.blockpool = make(map[string]wire.Message)
-	mp.ackpool = make([]*wire.MsgAck, 0, 20000)
+	mp.ackpool = make([]*wire.MsgAck, 20000, 20000)
 	mp.dirBlockSigs = make([]*wire.MsgDirBlockSig, 0, 32)
-	mp.processListItems = make([]*consensus.ProcessListItem, 0, 20000)
+	mp.processListItems = make([]*consensus.ProcessListItem, 20000, 20000)
 	return nil
 }
 
@@ -55,7 +55,7 @@ func (mp *ftmMemPool) getDirBlockSigPool() []*wire.MsgDirBlockSig {
 // addAck add the ack to ackpool and find it's acknowledged msg.
 // then add them to ftmMemPool if available. otherwise return missing acked msg.
 func (mp *ftmMemPool) addAck(ack *wire.MsgAck) *wire.Message {
-	procLog.Infof("addAck: %+v", ack)
+	fmt.Printf("addAck: %+v\n", ack)
 	mp.ackpool[ack.Index] = ack
 	if ack.Type == wire.ACK_REVEAL_ENTRY || ack.Type == wire.ACK_REVEAL_CHAIN ||
 		ack.Type == wire.ACK_COMMIT_CHAIN || ack.Type == wire.ACK_COMMIT_ENTRY {

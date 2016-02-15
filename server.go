@@ -1424,3 +1424,10 @@ func (s *server) initServerKeys() {
 		//p.pubKey = common.PubKeyFromString(common.SERVER_PUB_KEY)
 	}
 }
+
+func (s *server) FederateServerCount() int {
+	if s.nodeType == common.SERVER_NODE {
+		return s.federateServers.Len() + 1
+	}
+	return 0
+}
