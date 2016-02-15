@@ -93,7 +93,7 @@ func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
 			a := ack.Clone()
 			a.Index = i
 			missingAcks = append(missingAcks, a)
-			procLog.Infof("Missing an Ack at index=%d, for ack=%s", i, spew.Sdump(a))
+			procLog.Infof("Missing an Ack at index=%d, for ack clone =%s", i, spew.Sdump(a))
 		}
 	}
 	return missingAcks

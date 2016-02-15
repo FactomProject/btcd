@@ -526,10 +526,10 @@ func processDirBlockSig() error {
 
 	dgsMap := make(map[string][]*wire.MsgDirBlockSig)
 	for _, v := range dbsigs {
-		if !v.Sig.Pub.Verify(v.DirBlockHash.Bytes(), v.Sig.Sig) {
-			fmt.Println("could not verify sig. dir block hash: ", v.DirBlockHash)
-			continue
-		}
+		//if !v.Sig.Pub.Verify(v.DirBlockHash.Bytes(), v.Sig.Sig) {
+		//fmt.Println("could not verify sig. dir block hash: ", v.DirBlockHash)
+		//continue
+		//}
 		key := v.DirBlockHash.String()
 		val := dgsMap[key]
 		if val == nil {
@@ -566,7 +566,7 @@ func processDirBlockSig() error {
 		// req := wire.NewDirBlockSigMsg()
 		// localServer.GetLeaderPeer().pushGetDirBlockSig(req)
 		// how to coordinate when the response comes ???
-		panic("No winner in dirblock signature comparison.")
+		//panic("No winner in dirblock signature comparison.")
 	}
 	go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
 	return nil
@@ -597,8 +597,9 @@ func processAck(msg *wire.MsgAck) error {
 		//to-do
 		//return errors.New(fmt.Sprintf("Invalid signature in Ack = %s\n", spew.Sdump(msg)))
 		fmt.Println("verify dir block signature: FAILED")
+	} else {
+		fmt.Println("verify dir block signature: SUCCESS")
 	}
-	fmt.Println("verify dir block signature: SUCCESS")
 	fmt.Printf("msg.Height=%d, dchain.NextDBHeight=%d, db.FetchNextBlockHeightCache()=%d\n",
 		msg.Height, dchain.NextDBHeight, db.FetchNextBlockHeightCache())
 
@@ -621,10 +622,10 @@ func processAck(msg *wire.MsgAck) error {
 		}
 		fmt.Printf("missing Acks: %d, %s", len(missingAcks), spew.Sdump(missingAcks))
 	}
-	if msg.Type == wire.END_MINUTE_10 && missingMsg == nil && len(missingAcks) == 0 {
-		fmt.Println("assembleEomMessages")
-		fMemPool.assembleEomMessages(msg)
-	}
+	//if msg.Type == wire.END_MINUTE_10 && missingMsg == nil && len(missingAcks) == 0 {
+	fmt.Println("assembleEomMessages")
+	fMemPool.assembleEomMessages(msg)
+	//}
 	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
 	/*
 		//???
