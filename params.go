@@ -72,10 +72,10 @@ type params struct {
 // it does not handle on to btcd.  This approach allows the wallet process
 // to emulate the full reference implementation RPC API.
 var mainNetParams = params{
-	Params:  &MainNetParams,
-	rpcPort: "8384",
+	Params:   &MainNetParams,
+	rpcPort:  "8384",
 	dnsSeeds: []string{
-		"52.27.143.38",
+	//"52.27.143.38",
 	},
 }
 

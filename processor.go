@@ -572,7 +572,7 @@ func processAck(msg *wire.MsgAck) error {
 		procLog.Infof("processAck: Ack.Height=%d, dchain.NextDBHeight=%d",
 			msg.Height, dchain.NextDBHeight)
 		//???
-		if msg.Height < dchain.NextDBHeight && blockSyncing {
+		if msg.Height == dchain.NextDBHeight && blockSyncing {
 			blockSyncing = false
 			procLog.Info("** reset blockSyncing to FLASE")
 		}

@@ -379,7 +379,7 @@ func deleteBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool) err
 }
 
 func validateDBSignature(aBlock *common.AdminBlock, dchain *common.DChain) bool {
-	procLog.Info("in validateDBSignature")
+	//procLog.Info("in validateDBSignature")
 
 	dbSigEntry := aBlock.GetDBSignature()
 	if dbSigEntry == nil {
