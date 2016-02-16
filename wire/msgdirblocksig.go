@@ -27,7 +27,7 @@ func (msg *MsgDirBlockSig) BtcDecode(r io.Reader, pver uint32) error {
 		return fmt.Errorf("MsgDirBlockSig.BtcDecode reader is not a " +
 			"*bytes.Buffer")
 	}
-	err := readElements(buf, &msg.DBHeight, &msg.DirBlockHash, &msg.Sig)
+	err := readElements(buf, &msg.DBHeight, msg.DirBlockHash, &msg.Sig)
 	if err != nil {
 		return err
 	}

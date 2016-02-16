@@ -1393,7 +1393,7 @@ func (p *peer) Start() error {
 
 	// Send an initial version message if this is an outbound connection.
 	if !p.inbound {
-		peerLog.Infof("!p.inbound, before pushVersionMsg: %s", p)
+		peerLog.Infof("peer.Start(): !p.inbound, before pushVersionMsg: %s", p)
 		err := p.pushVersionMsg()
 		if err != nil {
 			p.logError("Can't send outbound version message %v", err)
@@ -1409,8 +1409,6 @@ func (p *peer) Start() error {
 	p.queueWg.Add(1)
 	go p.queueHandler()
 	go p.outHandler()
-
-	//go StartProcessor()
 
 	return nil
 }
@@ -1435,16 +1433,13 @@ func newPeerBase(s *server, inbound bool) *peer {
 		knownInventory:  NewMruInventoryMap(maxKnownInventory),
 		requestedTxns:   make(map[wire.ShaHash]struct{}),
 		requestedBlocks: make(map[wire.ShaHash]struct{}),
-		//		filter:          bloom.LoadFilter(nil),
-		outputQueue:    make(chan outMsg, outputBufferSize),
-		sendQueue:      make(chan outMsg, 1),   // nonblocking sync
-		sendDoneQueue:  make(chan struct{}, 1), // nonblocking sync
-		outputInvChan:  make(chan *wire.InvVect, outputBufferSize),
-		txProcessed:    make(chan struct{}, 1),
-		blockProcessed: make(chan struct{}, 1),
-		quit:           make(chan struct{}),
-		//nodeType:       factomConfig.App.NodeMode,
-		//nodeID:         factomConfig.App.NodeID,
+		outputQueue:     make(chan outMsg, outputBufferSize),
+		sendQueue:       make(chan outMsg, 1),   // nonblocking sync
+		sendDoneQueue:   make(chan struct{}, 1), // nonblocking sync
+		outputInvChan:   make(chan *wire.InvVect, outputBufferSize),
+		txProcessed:     make(chan struct{}, 1),
+		blockProcessed:  make(chan struct{}, 1),
+		quit:            make(chan struct{}),
 	}
 	return &p
 }
@@ -1457,10 +1452,6 @@ func newInboundPeer(s *server, conn net.Conn) *peer {
 	p.addr = conn.RemoteAddr().String()
 	p.timeConnected = time.Now()
 	atomic.AddInt32(&p.connected, 1)
-	// inbound peer share the same id/type with the server.
-	// while outbound peer needs to set its id/type through incoming MsgVersion
-	//p.nodeType = factomConfig.App.NodeMode
-	//p.nodeID = factomConfig.App.NodeID
 	return p
 }
 

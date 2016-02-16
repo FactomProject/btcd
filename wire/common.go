@@ -115,6 +115,13 @@ func readElement(r io.Reader, element interface{}) error {
 		}
 		return nil
 
+	case *common.Hash:
+		_, err := io.ReadFull(r, e.Bytes())
+		if err != nil {
+			return err
+		}
+		return nil
+
 	case *ServiceFlag:
 		b := scratch[0:8]
 		_, err := io.ReadFull(r, b)
@@ -261,6 +268,13 @@ func writeElement(w io.Writer, element interface{}) error {
 
 	case *ShaHash:
 		_, err := w.Write(e[:])
+		if err != nil {
+			return err
+		}
+		return nil
+
+	case *common.Hash:
+		_, err := w.Write(e.Bytes())
 		if err != nil {
 			return err
 		}

@@ -100,8 +100,8 @@ func LoadConfigurations(fcfg *util.FactomdConfig) {
 }
 
 // InitProcessor initializes the processor
-func initProcessor() {
-	//LoadConfigurations()
+func InitProcessor(ldb database.Db) {
+	db = ldb
 	initServerKeys()
 	fMemPool = new(ftmMemPool)
 	fMemPool.initFtmMemPool()
@@ -127,12 +127,12 @@ func initProcessor() {
 		anchor.InitAnchor(db, inMsgQueue, serverPrivKey)
 	}
 	// build the Genesis blocks if the current height is 0
-	if dchain.NextDBHeight == 0 && nodeMode == common.SERVER_NODE && !blockSyncing {
-		buildGenesisBlocks()
-		//} else {
-		// To be improved in milestone 2 ???
-		//SignDirectoryBlock(db)
-	}
+	//if dchain.NextDBHeight == 0 && nodeMode == common.SERVER_NODE && !blockSyncing {
+	//buildGenesisBlocks()
+	//} else {
+	// To be improved in milestone 2 ???
+	//SignDirectoryBlock(db)
+	//}
 
 	// init process list manager
 	initProcessListMgr()
@@ -159,7 +159,7 @@ func initProcessor() {
 
 // StartProcessor is started from factomd
 func StartProcessor() {
-	initProcessor()
+	//initProcessor()
 	procLog.Info("StartProcessor: blockSyncing=", blockSyncing)
 
 	// Initialize timer for the open dblock before processing messages
@@ -320,7 +320,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		// todo: when to start? can NOT do this for the first EOM_1 ???
 		if msgEom.EOM_Type == wire.END_MINUTE_1 {
 			if !singleServerMode {
-				processDirBlockSig()
+				go processDirBlockSig()
 			} else {
 				// no need to check dir block sig but need to save it
 				if newDBlock != nil {
@@ -330,20 +330,28 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		}
 		// only the leader need to deal with this and
 		// followers EOM will be driven by Ack of this EOM.
-		fmt.Printf("in case.CmdInt_EOM: localServer.IsLeader=%v", localServer.IsLeader())
-		if localServer.IsLeader() || singleServerMode {
-			err := processLeaderEOM(msgEom)
-			if err != nil {
-				return err
-			}
-			cp.CP.AddUpdate(
-				"MinMark",  // tag
-				"status",   // Category
-				"Progress", // Title
-				fmt.Sprintf("End of Minute %v\n", msgEom.EOM_Type)+ // Message
-					fmt.Sprintf("Directory Block Height %v", dchain.NextDBHeight),
-				0)
+		fmt.Printf("in case.CmdInt_EOM: localServer.IsLeader=%v\n", localServer.IsLeader())
+
+		// todo: need to sync up server & peer, and make sure it connects to
+		// at least one peer if available before server getting here.
+		// this is mostly a problem of 60 seconds block rather than normally 10 minute block
+		// For now, single server mode has to have InitStart = false in config
+		// ???
+		//if localServer.IsLeader() || singleServerMode {
+		if !localServer.IsLeader() {
+			return nil
 		}
+		err := processLeaderEOM(msgEom)
+		if err != nil {
+			return err
+		}
+		cp.CP.AddUpdate(
+			"MinMark",  // tag
+			"status",   // Category
+			"Progress", // Title
+			fmt.Sprintf("End of Minute %v\n", msgEom.EOM_Type)+ // Message
+				fmt.Sprintf("Directory Block Height %v", dchain.NextDBHeight),
+			0)
 
 	case wire.CmdDirBlock:
 		procLog.Infof("wire.CmdDirBlock: blockSyncing: %t", blockSyncing)
@@ -493,7 +501,7 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 	if ack.ChainID == nil {
 		ack.ChainID = dchain.ChainID
 	}
-	procLog.Infof("processLeaderEOM: ack=%s", spew.Sdump(ack))
+	procLog.Infof("processLeaderEOM: leader sending ack=%s", spew.Sdump(ack))
 	outMsgQueue <- ack
 
 	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
@@ -1079,20 +1087,19 @@ func buildGenesisBlocks() error {
 	}
 
 	saveBlocks(dbBlock, aBlock, cBlock, FBlock, nil)
-
 	exportDChain(dchain)
-
-	SignDirectoryBlock(dbBlock)
-
-	// place an anchor into btc
 	placeAnchor(dbBlock)
-
 	return nil
 }
 
 // build blocks from all process lists
 func buildBlocks() error {
-
+	// build the Genesis blocks if the current height is 0
+	fmt.Println("dchain.NextDBHeight=", dchain.NextDBHeight)
+	if dchain.NextDBHeight-1 == 0 {
+		fmt.Println("buildGenesisBlocks....")
+		return buildGenesisBlocks()
+	}
 	// Allocate the first three dbentries for Admin block, ECBlock and Factoid block
 	dchain.AddDBEntry(&common.DBEntry{}) // AdminBlock
 	dchain.AddDBEntry(&common.DBEntry{}) // ECBlock
@@ -1384,7 +1391,9 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	block.BuildKeyMerkleRoot()
 
 	// send out dir block sig first
-	SignDirectoryBlock(block)
+	if dchain.NextDBHeight > 1 { // for genesis block, no action here for now ???
+		SignDirectoryBlock(block)
+	}
 
 	//Store the block in db
 	//db.ProcessDBlockBatch(block)
@@ -1427,12 +1436,7 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 	db.UpdateNextBlockHeightCache(dchain.NextDBHeight)
 	exportDBlock(dblock)
 
-	if localServer.isLeader || localServer.isSingleServerMode() {
-		anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(dblock))
-		go anchor.SendRawTransactionToBTC(dblock.KeyMR, dblock.Header.DBHeight)
-		//placeAnchor(dbBlock)
-	}
-
+	placeAnchor(dblock)
 	fMemPool.resetDirBlockSigPool()
 	return nil
 }
@@ -1470,13 +1474,10 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 }
 
 // Place an anchor into btc
-func placeAnchor(dbBlock *common.DirectoryBlock) error {
-	// Only Servers can write the anchor to Bitcoin network
-	if nodeMode == common.SERVER_NODE && dbBlock != nil {
-		// todo: need to make anchor as a go routine, independent of factomd
-		// same as blockmanager to btcd
-		go anchor.SendRawTransactionToBTC(dbBlock.KeyMR, dbBlock.Header.DBHeight)
-
+func placeAnchor(dblock *common.DirectoryBlock) error {
+	if localServer.isLeader || localServer.isSingleServerMode() {
+		anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(dblock))
+		go anchor.SendRawTransactionToBTC(dblock.KeyMR, dblock.Header.DBHeight)
 	}
 	return nil
 }

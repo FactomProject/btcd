@@ -338,17 +338,17 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 	srvrLog.Debugf("New peer %s", p)
 	if p.inbound {
 		state.peers.PushBack(p)
-		srvrLog.Infof("inbound peer: %s, state.peers.Len=%d", p, state.peers.Len())
+		srvrLog.Infof("inbound peer: %s, total.state.peers=%d", p, state.peers.Len())
 		p.Start()
 		// how about more than one inbound peer ???
 	} else {
 		state.outboundGroups[addrmgr.GroupKey(p.na)]++
 		if p.persistent {
 			state.persistentPeers.PushBack(p)
-			srvrLog.Infof("persistent peer: %s, total=%d", p, state.persistentPeers.Len())
+			srvrLog.Infof("persistent peer: %s, total.state.persistentPeers=%d", p, state.persistentPeers.Len())
 		} else {
 			state.outboundPeers.PushBack(p)
-			srvrLog.Infof("outbound peer: %s, total=%d", p, state.outboundPeers.Len())
+			srvrLog.Infof("outbound peer: %s, total.state.outboundPeers=%d", p, state.outboundPeers.Len())
 		}
 	}
 	return true
@@ -384,7 +384,10 @@ func (s *server) handleDonePeerMsg(state *peerState, p *peer) {
 	}
 	list = s.federateServers
 	for e := list.Front(); e != nil; e = e.Next() {
-		if e.Value == p {
+		fedServer := e.Value.(*federateServer)
+		fmt.Printf("handleDonePeerMsg: need to remove %s, federate server candidate: %s\n", p, spew.Sdump(fedServer))
+		if fedServer.Peer == p {
+			fmt.Printf("removed: %s\n", p)
 			list.Remove(e)
 			srvrLog.Debugf("Removed federate server %s", p)
 			return
@@ -692,13 +695,13 @@ func (s *server) peerHandler() {
 
 	// Start up persistent peers.
 	permanentPeers := cfg.ConnectPeers
-	srvrLog.Infof("permanentPeers: %s", spew.Sdump(permanentPeers))
+	srvrLog.Infof("peerHandler(): permanentPeers: %s", spew.Sdump(permanentPeers))
 	if len(permanentPeers) == 0 {
 		permanentPeers = cfg.AddPeers
 	}
-	srvrLog.Infof("permanentPeers - AddPeers: ", spew.Sdump(permanentPeers))
+	srvrLog.Infof("peerHandler(): permanentPeers - AddPeers: ", spew.Sdump(permanentPeers))
 	for _, addr := range permanentPeers {
-		srvrLog.Infof("before handleAddPeerMsg: newOutboundPeer: ", addr)
+		srvrLog.Infof("before handleAddPeerMsg: newOutboundPeer: %+v", addr)
 		s.handleAddPeerMsg(state, newOutboundPeer(s, addr, true, 0))
 	}
 
