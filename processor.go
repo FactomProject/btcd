@@ -1461,10 +1461,12 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 
 		//create and broadcast dir block sig message
 		dbHeaderBytes, _ = newdb.Header.MarshalBinary()
+		h := common.Hash{}
+		h.SetBytes(dbHeaderBytes[:])
 		sig = serverPrivKey.Sign(dbHeaderBytes)
 		msg := &wire.MsgDirBlockSig{
 			DBHeight:     newdb.Header.DBHeight,
-			DirBlockHash: common.Sha(dbHeaderBytes), //????
+			DirBlockHash: h, //????
 			Sig:          sig,
 		}
 		outMsgQueue <- msg
