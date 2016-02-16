@@ -45,6 +45,12 @@ const (
 
 	// defaultMaxOutbound is the default number of max outbound peers.
 	defaultMaxOutbound = 8
+
+	// default block number the leader will preside.
+	defaultLeaderTerm = 5
+
+	// default DBHeight in advance to broadcast notification of next leader message.
+	defaultNotifyDBHeight = 2
 )
 
 var prevConnected int
@@ -109,21 +115,17 @@ type updatePeerHeightsMsg struct {
 // server provides a bitcoin server for handling communications to and from
 // bitcoin peers.
 type server struct {
-	nonce         uint64
-	listeners     []net.Listener
-	chainParams   *Params
-	started       int32      // atomic
-	shutdown      int32      // atomic
-	shutdownSched int32      // atomic
-	bytesMutex    sync.Mutex // For the following two fields.
-	bytesReceived uint64     // Total bytes received from all peers since start.
-	bytesSent     uint64     // Total bytes sent by all peers since start.
-	addrManager   *addrmgr.AddrManager
-	//rpcServer     *rpcServer
-	blockManager *blockManager
-	//	addrIndexer  *addrIndexer
-	//	txMemPool *txMemPool
-	//	cpuMiner             *CPUMiner
+	nonce                uint64
+	listeners            []net.Listener
+	chainParams          *Params
+	started              int32      // atomic
+	shutdown             int32      // atomic
+	shutdownSched        int32      // atomic
+	bytesMutex           sync.Mutex // For the following two fields.
+	bytesReceived        uint64     // Total bytes received from all peers since start.
+	bytesSent            uint64     // Total bytes sent by all peers since start.
+	addrManager          *addrmgr.AddrManager
+	blockManager         *blockManager
 	modifyRebroadcastInv chan interface{}
 	newPeers             chan *peer
 	donePeers            chan *peer
@@ -138,12 +140,32 @@ type server struct {
 	nat                  NAT
 	//	db                   database.Db
 	//	timeSource blockchain.MedianTimeSource
-	nodeType        string
-	nodeID          string
-	privKey         common.PrivateKey
-	leaderPeer      *peer
-	isLeader        bool
-	federateServers *list.List
+	nodeType         string
+	nodeID           string
+	privKey          common.PrivateKey
+	leaderPeer       *peer
+	isLeader         bool
+	isLeaderElected  bool
+	latestDBHeight   chan uint32
+	federateServers  *list.List
+	myLeaderPolicy   *leaderPolicy
+	nextLeaderPolicy *leaderPolicy
+}
+
+type leaderPolicy struct {
+	NextLeader     *peer
+	StartDBHeight  uint32
+	Term           uint32 //# of blocks this leader will preside, default is 5
+	NotifyDBHeight uint32 // delta DBHeight in advance to broadcast notification
+	Notified       bool
+	Confirmed      bool
+}
+
+type federateServer struct {
+	Peer            *peer
+	FirstJoined     uint32 //DBHeight when this peer joins the network as a federate server
+	LastSuccessVote uint32 //DBHeight of first successful vote of dir block signature
+	LeaderSince     uint32 //DBHeight when this peer becomes leader
 }
 
 type peerState struct {
@@ -153,7 +175,6 @@ type peerState struct {
 	banned           map[string]time.Time
 	outboundGroups   map[string]int
 	maxOutboundPeers int
-	//federateServers  *list.List
 }
 
 // randomUint16Number returns a random uint16 in a specified input range.  Note
@@ -1343,6 +1364,7 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 		modifyRebroadcastInv: make(chan interface{}),
 		peerHeightsUpdate:    make(chan updatePeerHeightsMsg),
 		nat:                  nat,
+		latestDBHeight:       make(chan uint32),
 		federateServers:      list.New(),
 		//		db:                   db,
 		//		timeSource: blockchain.NewMedianTime(),
@@ -1352,14 +1374,28 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 		return nil, err
 	}
 	s.blockManager = bm
-	//	s.txMemPool = newTxMemPool(&s)
-	//	s.cpuMiner = newCPUMiner(&s)
 
+	s.nodeID = factomConfig.App.NodeID
 	s.nodeType = factomConfig.App.NodeMode
 	s.isLeader = factomConfig.App.InitLeader
-	s.nodeID = factomConfig.App.NodeID
 	s.initServerKeys()
-	//s.nodeSig = s.privKey.Sign([]byte(s.nodeID))
+
+	_, newestHeight, _ := db.FetchBlockHeightCache()
+	h := uint32(newestHeight)
+	if common.SERVER_NODE == s.nodeType {
+		fedServer := &federateServer{
+			FirstJoined: h,
+		}
+		if s.isLeader {
+			fedServer.LeaderSince = h + 1
+		}
+		s.federateServers.PushBack(fedServer)
+	}
+
+	if s.isLeader {
+		//s.latestDBHeight <- newestHeight
+		s.NewLeader(h)
+	}
 
 	return &s, nil
 }
@@ -1427,7 +1463,96 @@ func (s *server) initServerKeys() {
 
 func (s *server) FederateServerCount() int {
 	if s.nodeType == common.SERVER_NODE {
-		return s.federateServers.Len() + 1
+		return s.federateServers.Len() //+ 1 //including this server itself
 	}
 	return 0
+}
+
+func (s *server) isSingleServerMode() bool {
+	return s.FederateServerCount() == 1
+}
+
+// NewLeader adds a new peer that has already been connected to the server.
+func (s *server) NewLeader(height uint32) {
+	s.isLeader = true
+	policy := &leaderPolicy{
+		StartDBHeight:  height + 1,
+		NotifyDBHeight: defaultNotifyDBHeight,
+		Term:           defaultLeaderTerm,
+	}
+	s.myLeaderPolicy = policy
+	s.latestDBHeight <- height
+}
+
+func (s *server) nextLeaderHandler() {
+	for {
+		select {
+		case h := <-s.latestDBHeight:
+			s.handleNextLeader(h)
+		default:
+
+		}
+	}
+}
+
+func (s *server) handleNextLeader(height uint32) {
+	srvrLog.Tracef("into handleNextLeaderMsg")
+	if !s.IsLeader() || !s.isLeaderElected {
+		return
+	}
+	if s.isLeaderElected {
+		if height > s.myLeaderPolicy.StartDBHeight {
+			fmt.Printf("height not right. height=%d, policy=%s\n",
+				height, spew.Sdump(s.myLeaderPolicy))
+			return
+		} else if height == s.myLeaderPolicy.NotifyDBHeight {
+			// regime change for leader-elected
+			s.isLeader = true
+			s.isLeaderElected = false
+		}
+		return
+	}
+	// this is a current leader
+	if height <= s.myLeaderPolicy.StartDBHeight ||
+		height > s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term {
+		fmt.Printf("height not right. height=%d, policy=%s\n",
+			height, spew.Sdump(s.myLeaderPolicy))
+		return
+	} else if height == s.myLeaderPolicy.NotifyDBHeight {
+		// determine who's the next qualified leader.
+		if s.federateServers.Len() <= 1 {
+			fmt.Println("It's a single server mode.")
+		}
+		// simple round robin for now
+		var next *federateServer
+		for e := s.federateServers.Front(); e != nil; e = e.Next() {
+			s.federateServers.MoveToBack(e)
+			fed := e.Value.(*federateServer)
+			if fed.Peer != nil {
+				next = fed
+				break
+			}
+		}
+		// starting DBHeight for next leader is, by default,
+		// current leader's starting height + its term
+		h := s.myLeaderPolicy.StartDBHeight + s.myLeaderPolicy.Term
+		policy := &leaderPolicy{
+			StartDBHeight:  h,
+			NotifyDBHeight: defaultNotifyDBHeight,
+			Term:           defaultLeaderTerm,
+		}
+		s.nextLeaderPolicy = policy
+
+		sig := s.privKey.Sign([]byte(s.nodeID + next.Peer.nodeID))
+		msg := wire.NewNextLeaderMsg(s.nodeID, next.Peer.nodeID, h, sig)
+		s.BroadcastMessage(msg)
+		s.myLeaderPolicy.Notified = true
+	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term {
+		//regime change for current leader
+		s.isLeader = true
+		s.isLeaderElected = false
+		s.myLeaderPolicy = nil
+		s.nextLeaderPolicy = nil
+	}
+	return
 }

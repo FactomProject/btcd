@@ -93,7 +93,7 @@ func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
 			a := ack.Clone()
 			a.Index = i
 			missingAcks = append(missingAcks, a)
-			procLog.Infof("Missing an Ack at index=%d, for ack clone =%s", i, spew.Sdump(a))
+			procLog.Infof("Missing an Ack at index=%d", i)
 		}
 	}
 	return missingAcks
@@ -108,7 +108,9 @@ func (mp *ftmMemPool) assembleEomMessages(ack *wire.MsgAck) error {
 		if mp.ackpool[i] == nil {
 			// missing an ACK here
 			// todo: request for this ack, panic for now
-			panic(fmt.Sprintf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack)))
+			//panic(fmt.Sprintf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack)))
+			fmt.Printf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack))
+			continue
 		}
 		plMgr.AddToLeadersProcessList(mp.ackpool[i], mp.ackpool[i].Affirmation, mp.ackpool[i].Type)
 	}

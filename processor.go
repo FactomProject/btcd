@@ -312,11 +312,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		}
 
 		msgEom, _ := msg.(*wire.MsgInt_EOM)
-		var singleServerMode = false
-		// single server mode
-		if localServer.FederateServerCount() == 1 {
-			singleServerMode = true
-		}
+		var singleServerMode = localServer.isSingleServerMode()
 		fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
 			"singleServerMode=", singleServerMode)
 		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
@@ -567,7 +563,10 @@ func processDirBlockSig() error {
 		// localServer.GetLeaderPeer().pushGetDirBlockSig(req)
 		// how to coordinate when the response comes ???
 		//panic("No winner in dirblock signature comparison.")
+		fmt.Println("No winner in dirblock signature comparison.")
 	}
+	// for leader / follower regime change
+	localServer.latestDBHeight <- newDBlock.Header.DBHeight
 	go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
 	return nil
 }
@@ -684,7 +683,7 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 
 		// Add to MyPL if Server Node
 		//if nodeMode == common.SERVER_NODE {
-		if localServer.IsLeader() || localServer.federateServers.Len() == 1 {
+		if localServer.IsLeader() || localServer.isSingleServerMode() {
 			if plMgr.IsMyPListExceedingLimit() {
 				procLog.Info("Exceeding MyProcessList size limit!")
 				return fMemPool.addOrphanMsg(msg, h)
@@ -802,7 +801,7 @@ func processCommitEntry(msg *wire.MsgCommitEntry) error {
 
 	// Server: add to MyPL
 	//if nodeMode == common.SERVER_NODE {
-	if localServer.IsLeader() || localServer.federateServers.Len() == 1 {
+	if localServer.IsLeader() || localServer.isSingleServerMode() {
 
 		// deduct the entry credits from the eCreditMap
 		eCreditMap[string(c.ECPubKey[:])] -= int32(c.Credits)
@@ -855,7 +854,7 @@ func processCommitChain(msg *wire.MsgCommitChain) error {
 
 	// Server: add to MyPL
 	//if nodeMode == common.SERVER_NODE {
-	if localServer.IsLeader() || localServer.federateServers.Len() == 1 {
+	if localServer.IsLeader() || localServer.isSingleServerMode() {
 		// deduct the entry credits from the eCreditMap
 		eCreditMap[string(c.ECPubKey[:])] -= int32(c.Credits)
 
@@ -1428,7 +1427,7 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 	db.UpdateNextBlockHeightCache(dchain.NextDBHeight)
 	exportDBlock(dblock)
 
-	if localServer.isLeader || localServer.federateServers.Len() == 1 {
+	if localServer.isLeader || localServer.isSingleServerMode() {
 		anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(dblock))
 		go anchor.SendRawTransactionToBTC(dblock.KeyMR, dblock.Header.DBHeight)
 		//placeAnchor(dbBlock)
@@ -1442,7 +1441,7 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 	// Only Servers can write the anchor to Bitcoin network
 	if nodeMode == common.SERVER_NODE && dchain.NextDBHeight > 0 { //&& localServer.isLeader {
-		fmt.Println("dchain.NextDBHeight: ", dchain.NextDBHeight)
+		fmt.Println("dchain.NextDBHeight: ", dchain.NextDBHeight-1) // 11th minute
 		// get the previous directory block from db
 		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
 		//????

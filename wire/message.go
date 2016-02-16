@@ -55,10 +55,12 @@ const (
 	CmdCommitEntry = "commitentry"
 	CmdRevealEntry = "revealentry"
 
-	CmdAck         = "confirmation"
-	CmdMHashReveal = "mhashreveal"
-	CmdEOM         = "eom"
-	CmdDirBlockSig = "dirblocksig"
+	CmdAck            = "confirmation"
+	CmdMHashReveal    = "mhashreveal"
+	CmdEOM            = "eom"
+	CmdDirBlockSig    = "dirblocksig"
+	CmdNextLeader     = "nextleader"
+	CmdNextLeaderResp = "nextleaderresp"
 )
 
 // MaxAppMsgPayload is the maximum bytes a factom app message can be in bytes.
@@ -167,6 +169,12 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdDirBlockSig:
 		msg = &MsgDirBlockSig{}
+
+	case CmdNextLeader:
+		msg = &MsgNextLeader{}
+
+	case CmdNextLeaderResp:
+		msg = &MsgNextLeaderResp{}
 
 	default:
 		return nil, fmt.Errorf("unhandled command [%s]", command)
