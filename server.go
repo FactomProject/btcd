@@ -1033,6 +1033,9 @@ func (s *server) Start() {
 	s.wg.Add(1)
 	go StartProcessor()
 
+	//s.wg.Add(1)
+	//go nextLeaderHandler()
+
 	if s.nat != nil {
 		s.wg.Add(1)
 		go s.upnpUpdateThread()
@@ -1393,8 +1396,7 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 	}
 
 	if s.isLeader {
-		//s.latestDBHeight <- newestHeight
-		s.NewLeader(h)
+		//s.NewLeader(h)
 	}
 
 	return &s, nil
