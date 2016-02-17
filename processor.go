@@ -126,13 +126,6 @@ func InitProcessor(ldb database.Db) {
 	if nodeMode == common.SERVER_NODE {
 		anchor.InitAnchor(db, inMsgQueue, serverPrivKey)
 	}
-	// build the Genesis blocks if the current height is 0
-	//if dchain.NextDBHeight == 0 && nodeMode == common.SERVER_NODE && !blockSyncing {
-	//buildGenesisBlocks()
-	//} else {
-	// To be improved in milestone 2 ???
-	//SignDirectoryBlock(db)
-	//}
 
 	// init process list manager
 	initProcessListMgr()
@@ -161,6 +154,10 @@ func InitProcessor(ldb database.Db) {
 func StartProcessor() {
 	//initProcessor()
 	procLog.Info("StartProcessor: blockSyncing=", blockSyncing)
+	if dchain.NextDBHeight == 0 && nodeMode == common.SERVER_NODE && !blockSyncing {
+		buildGenesisBlocks()
+	}
+	procLog.Debug("**** after creating genesis block: dchain.NextDBHeight=", dchain.NextDBHeight)
 
 	// Initialize timer for the open dblock before processing messages
 	if nodeMode == common.SERVER_NODE && !blockSyncing {
@@ -324,6 +321,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 			} else {
 				// no need to check dir block sig but need to save it
 				if newDBlock != nil {
+					// including saveBlocks for genesis blocks
 					go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
 				}
 			}
@@ -504,9 +502,9 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 	procLog.Infof("processLeaderEOM: leader sending ack=%s", spew.Sdump(ack))
 	outMsgQueue <- ack
 
-	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
+	//procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
 	if msgEom.EOM_Type == wire.END_MINUTE_10 {
-		fmt.Println("processLeaderEOM: END_MINUTE_10: before buildBlocks")
+		fmt.Println("processLeaderEOM: END_MINUTE_10: before LEADER buildBlocks")
 		err = buildBlocks() //broadcast new dir block sig
 		if err != nil {
 			return err
@@ -612,7 +610,7 @@ func processAck(msg *wire.MsgAck) error {
 
 	missingMsg := fMemPool.addAck(msg)
 	if missingMsg != nil {
-		//request missing acks from Leader
+		//todo: request missing acks from Leader
 		//how to coordinate new processAck when missing acks come ???
 		//
 		fmt.Println("missing msg: ", spew.Sdump(missingMsg))
@@ -623,36 +621,24 @@ func processAck(msg *wire.MsgAck) error {
 	if msg.IsEomAck() {
 		missingAcks = fMemPool.getMissingMsgAck(msg)
 		if len(missingAcks) > 0 {
-			//request missing acks from Leader
+			fmt.Printf("missing Acks: %d, %s", len(missingAcks), spew.Sdump(missingAcks))
+			//todo: request missing acks from Leader
 			//how to coordinate new processAck when missing acks come ???
 			//
 		}
-		fmt.Printf("missing Acks: %d, %s", len(missingAcks), spew.Sdump(missingAcks))
 	}
-	//if msg.Type == wire.END_MINUTE_10 && missingMsg == nil && len(missingAcks) == 0 {
-	fmt.Println("assembleEomMessages")
-	fMemPool.assembleEomMessages(msg)
-	//}
-	procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
-	/*
-		//???
-		// Update the next block height in dchain
-		if msg.Height > dchain.NextDBHeight {
-			dchain.NextDBHeight = msg.Height
-		}
-		//???
-		// Update the next block height in db
-		if int64(msg.Height) > db.FetchNextBlockHeightCache() {
-			db.UpdateNextBlockHeightCache(msg.Height)
-		}*/
-
+	if msg.Type == wire.END_MINUTE_10 { //}&& missingMsg == nil && len(missingAcks) == 0 {
+		fmt.Println("assembleEomMessages")
+		fMemPool.assembleEomMessages(msg)
+		procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
+	}
 	if msg.Type == wire.END_MINUTE_10 {
+		// followers build Blocks
 		err = buildBlocks() //broadcast new dir block sig
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -754,28 +740,6 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 		if !bytes.Equal(c.Weld.Bytes()[:], weld[:]) {
 			return fmt.Errorf("RevealChain's weld does not match with CommitChain: %s", e.Hash().String())
 		}
-
-		/* as a client, no need to do the following ????
-		// Add the msg to the Mem pool
-		fMemPool.addMsg(msg, h)
-
-		// Add to MyPL if Server Node
-		if nodeMode == common.SERVER_NODE {
-			if plMgr.IsMyPListExceedingLimit() {
-				procLog.Info("Exceeding MyProcessList size limit!")
-				return fMemPool.addOrphanMsg(msg, h)
-			}
-			ack, err := plMgr.AddToLeadersProcessList(msg, h,
-				wire.ACK_REVEAL_CHAIN)
-			if err != nil {
-				return err
-			} else {
-				// Broadcast the ack to the network if no errors
-				outMsgQueue <- ack
-			}
-		}
-
-		delete(commitChainMap, e.Hash().String()) */
 		return nil
 	}
 	return fmt.Errorf("No commit for entry")
@@ -1058,13 +1022,13 @@ func buildGenesisBlocks() error {
 
 	// Entry Credit Chain
 	cBlock := newEntryCreditBlock(ecchain)
-	procLog.Debugf("buildGenesisBlocks: cBlock=%s\n", spew.Sdump(cBlock))
+	procLog.Debugf("buildGenesisBlocks: cBlock=%s\n", spew.Sdump(cBlock.Header))
 	dchain.AddECBlockToDBEntry(cBlock)
 	exportECChain(ecchain)
 
 	// Admin chain
 	aBlock := newAdminBlock(achain)
-	procLog.Debugf("buildGenesisBlocks: aBlock=%s\n", spew.Sdump(aBlock))
+	procLog.Debugf("buildGenesisBlocks: aBlock=%s\n", spew.Sdump(aBlock.Header))
 	dchain.AddABlockToDBEntry(aBlock)
 	exportAChain(achain)
 
@@ -1072,12 +1036,14 @@ func buildGenesisBlocks() error {
 	//fchain.NextBlock = block.GetGenesisFBlock(0, FactoshisPerCredit, 10, 200000000000)
 	fchain.NextBlock = block.GetGenesisFBlock()
 	FBlock := newFactoidBlock(fchain)
+	procLog.Debugf("buildGenesisBlocks: fBlock.height=%ds\n", FBlock.GetDBHeight())
 	dchain.AddFBlockToDBEntry(FBlock)
 	exportFctChain(fchain)
 
 	// Directory Block chain
-	procLog.Debug("in buildGenesisBlocks")
+	procLog.Debug("onto newDirectoryBlock in buildGenesisBlocks")
 	dbBlock := newDirectoryBlock(dchain)
+	exportDChain(dchain)
 
 	// Check block hash if genesis block
 	if dbBlock.DBHash.String() != common.GENESIS_DIR_BLOCK_HASH {
@@ -1086,20 +1052,18 @@ func buildGenesisBlocks() error {
 			"\nGenesis block hash found:    " + dbBlock.DBHash.String() + "\n")
 	}
 
-	saveBlocks(dbBlock, aBlock, cBlock, FBlock, nil)
-	exportDChain(dchain)
-	placeAnchor(dbBlock)
+	initProcessListMgr()
+
+	// saveBlocks will be done at the next EOM_1
+	//go saveBlocks(dbBlock, aBlock, cBlock, FBlock, nil)
 	return nil
 }
 
 // build blocks from all process lists
 func buildBlocks() error {
 	// build the Genesis blocks if the current height is 0
-	fmt.Println("dchain.NextDBHeight=", dchain.NextDBHeight)
-	if dchain.NextDBHeight-1 == 0 {
-		fmt.Println("buildGenesisBlocks....")
-		return buildGenesisBlocks()
-	}
+	fmt.Println("buildBlocks(): dchain.NextDBHeight=", dchain.NextDBHeight)
+
 	// Allocate the first three dbentries for Admin block, ECBlock and Factoid block
 	dchain.AddDBEntry(&common.DBEntry{}) // AdminBlock
 	dchain.AddDBEntry(&common.DBEntry{}) // ECBlock
@@ -1112,17 +1076,14 @@ func buildBlocks() error {
 	// Entry Credit Chain
 	ecBlock := newEntryCreditBlock(ecchain)
 	dchain.AddECBlockToDBEntry(ecBlock)
-	//exportECBlock(ecBlock)
 
 	// Admin chain
 	aBlock := newAdminBlock(achain)
 	dchain.AddABlockToDBEntry(aBlock)
-	//exportABlock(aBlock)
 
 	// Factoid chain
 	fBlock := newFactoidBlock(fchain)
 	dchain.AddFBlockToDBEntry(fBlock)
-	//exportFctBlock(fBlock)
 
 	// sort the echains by chain id
 	var keys []string
@@ -1138,28 +1099,12 @@ func buildBlocks() error {
 		if eblock != nil {
 			dchain.AddEBlockToDBEntry(eblock)
 		}
-		//exportEBlock(eblock)
 		newEBlocks = append(newEBlocks, eblock)
 	}
 
 	// Directory Block chain
 	procLog.Debug("in buildBlocks")
 	newDirectoryBlock(dchain) //sign dir block and broadcast it
-
-	//save & export all chain & blocks
-
-	//anchor dir block
-
-	// Generate the inventory vector and relay it.
-	//binary, _ := dbBlock.MarshalBinary()
-	//commonHash := common.Sha(binary)
-	//hash, _ := wire.NewShaHash(commonHash.Bytes())
-	//outMsgQueue <- (&wire.MsgInt_DirBlock{hash})
-
-	// Update dir block height cache in db
-	//db.UpdateBlockHeightCache(dbBlock.Header.DBHeight, commonHash)
-	//db.UpdateNextBlockHeightCache(dchain.NextDBHeight)
-	//exportDBlock(dbBlock)
 
 	// should keep this process list for a while ????
 	// re-initialize the process lit manager
@@ -1174,12 +1119,6 @@ func buildBlocks() error {
 		}
 		go timer.StartBlockTimer()
 	}
-
-	// place an anchor into btc
-	//if localServer.isLeader {
-	//placeAnchor(dbBlock)
-	//}
-
 	return nil
 }
 
@@ -1230,10 +1169,6 @@ func newEntryBlock(chain *common.EChain) *common.EBlock {
 		procLog.Debug("EntryBlock Error: " + err.Error())
 		return nil
 	}
-
-	//Store the block in db
-	//db.ProcessEBlockBatch(block)
-	//procLog.Infof("EntryBlock: block" + strconv.FormatUint(uint64(block.Header.EBSequence), 10) + " created for chain: " + chain.ChainID.String())
 	return block
 }
 
@@ -1261,11 +1196,6 @@ func newEntryCreditBlock(chain *common.ECChain) *common.ECBlock {
 	chain.NextBlock.AddEntry(serverIndex)
 	chain.BlockMutex.Unlock()
 	newECBlock = block
-
-	//Store the block in db
-	//db.ProcessECBlockBatch(block)
-	//procLog.Infof("EntryCreditBlock: block" + strconv.FormatUint(uint64(block.Header.DBHeight), 10) + " created for chain: " + chain.ChainID.String())
-
 	return block
 }
 
@@ -1299,11 +1229,6 @@ func newAdminBlock(chain *common.AdminChain) *common.AdminBlock {
 	}
 	chain.BlockMutex.Unlock()
 	newABlock = block
-
-	//Store the block in db
-	//db.ProcessABlockBatch(block)
-	//procLog.Infof("Admin Block: block " + strconv.FormatUint(uint64(block.Header.DBHeight), 10) + " created for chain: " + chain.ChainID.String())
-
 	return block
 }
 
@@ -1351,17 +1276,12 @@ func newFactoidBlock(chain *common.FctChain) block.IFBlock {
 	chain.NextBlock = common.FactoidState.GetCurrentBlock()
 	chain.BlockMutex.Unlock()
 	newFBlock = currentBlock
-
-	//Store the block in db
-	//db.ProcessFBlockBatch(currentBlock)
-	//procLog.Infof("Factoid chain: block " + strconv.FormatUint(uint64(currentBlock.GetDBHeight()), 10) + " created for chain: " + chain.ChainID.String())
-
 	return currentBlock
 }
 
 // Seals the current open block, store it in db and create the next open block
 func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
-	procLog.Debug("**** new Dir Block")
+	procLog.Debug("**** enter newDirectoryBlock: chain.NextDBHeight=", chain.NextDBHeight)
 	// acquire the last block
 	block := chain.NextBlock
 
@@ -1383,24 +1303,23 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	chain.AddDBlockToDChain(block)
 	chain.NextDBHeight++
 	chain.NextBlock, _ = common.CreateDBlock(chain, block, 10)
+	//chain.NextDBHeight++
 	chain.BlockMutex.Unlock()
-	procLog.Infof("newDirectoryBlock: new dbBlock=%s", spew.Sdump(block))
+	procLog.Infof("newDirectoryBlock: new dbBlock=%s", spew.Sdump(block.Header))
+	procLog.Debug("**** after creating new dir block, dchain.NextDBHeight=", chain.NextDBHeight)
 
 	newDBlock = block
 	block.DBHash, _ = common.CreateHash(block)
 	block.BuildKeyMerkleRoot()
 
 	// send out dir block sig first
-	if dchain.NextDBHeight > 1 { // for genesis block, no action here for now ???
+	if dchain.NextDBHeight > 1 {
 		SignDirectoryBlock(block)
+		//} else {
+		// for genesis block, no action here for now ???
+		//procLog.Debug("genesis blocks created. to-be-saved.")
+		//go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, nil)
 	}
-
-	//Store the block in db
-	//db.ProcessDBlockBatch(block)
-	// Initialize the dirBlockInfo obj in db
-	//db.InsertDirBlockInfo(common.NewDirBlockInfoFromDBlock(block))
-	//anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(block))
-	//procLog.Info("DirectoryBlock: block" + strconv.FormatUint(uint64(block.Header.DBHeight), 10) + " created for directory block chain: " + chain.ChainID.String())
 	return block
 }
 
@@ -1452,8 +1371,8 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 		if dbBlock == nil {
 			dbBlock, _ = db.FetchDBlockByHeight(dchain.NextDBHeight - 2)
 		}
-		fmt.Printf("SignDirBlock: dbBlock from db=%s\n", spew.Sdump(dbBlock))
-		fmt.Printf("SignDirBlock: new dbBlock=%s\n", spew.Sdump(newdb))
+		fmt.Printf("SignDirBlock: dbBlock from db=%s\n", spew.Sdump(dbBlock.Header))
+		fmt.Printf("SignDirBlock: new dbBlock=%s\n", spew.Sdump(newdb.Header))
 		dbHeaderBytes, _ := dbBlock.Header.MarshalBinary()
 		identityChainID := common.NewHash() // 0 ID for milestone 1 ????
 		sig := serverPrivKey.Sign(dbHeaderBytes)
