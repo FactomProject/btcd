@@ -167,7 +167,7 @@ func validateAndStoreBlocks(fMemPool *ftmMemPool, db database.Db, dchain *common
 	var sleeptime int
 	var dblk *common.DirectoryBlock
 
-	//procLog.Info("in validateAndStoreBlocks")
+	procLog.Info("in validateAndStoreBlocks")
 	for true {
 		dblk = nil
 		_, myDBHeight, _ = db.FetchBlockHeightCache()
@@ -205,7 +205,7 @@ func validateAndStoreBlocks(fMemPool *ftmMemPool, db database.Db, dchain *common
 
 // Validate the new blocks in mem pool and store them in db
 func validateBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db database.Db) bool {
-	//procLog.Info("in validateBlocksFromMemPool")
+	procLog.Info("in validateBlocksFromMemPool. dir block height=", b.Header.DBHeight)
 
 	// Validate the genesis block
 	if b.Header.DBHeight == 0 {
@@ -265,7 +265,7 @@ func validateBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, d
 // Validate the new blocks in mem pool and store them in db
 // Need to make a batch insert in db in milestone 2
 func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db database.Db) error {
-	//procLog.Info("in storeBlocksFromMemPool")
+	procLog.Info("in storeBlocksFromMemPool. dir block height=", b.Header.DBHeight)
 
 	for _, dbEntry := range b.DBEntries {
 		switch dbEntry.ChainID.String() {
@@ -356,7 +356,7 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 
 // Validate the new blocks in mem pool and store them in db
 func deleteBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool) error {
-	//procLog.Info("in deleteBlocksFromMemPool")
+	procLog.Info("in deleteBlocksFromMemPool. dir block height=", b.Header.DBHeight)
 	for _, dbEntry := range b.DBEntries {
 		switch dbEntry.ChainID.String() {
 		case ecchain.ChainID.String():
@@ -379,7 +379,7 @@ func deleteBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool) err
 }
 
 func validateDBSignature(aBlock *common.AdminBlock, dchain *common.DChain) bool {
-	//procLog.Info("in validateDBSignature")
+	procLog.Info("in validateDBSignature")
 
 	dbSigEntry := aBlock.GetDBSignature()
 	if dbSigEntry == nil {
@@ -402,7 +402,8 @@ func validateDBSignature(aBlock *common.AdminBlock, dchain *common.DChain) bool 
 				bHeader, _ := dblk.Header.MarshalBinary()
 				if !serverPubKey.Verify(bHeader, (*[64]byte)(dbSig.PrevDBSig)) {
 					procLog.Infof("No valid signature found in Admin Block = %s\n", spew.Sdump(aBlock))
-					return false
+					//return false
+					return true
 				}
 			}
 		}

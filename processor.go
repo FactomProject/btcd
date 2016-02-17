@@ -308,7 +308,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 			return nil
 		}
 		dbs, _ := msg.(*wire.MsgDirBlockSig)
-		fmt.Printf("MsgDirBlockSig: %s\n", spew.Sdump(dbs))
+		fmt.Printf("Incoming MsgDirBlockSig: %s\n", spew.Sdump(dbs))
 		// to simplify this, use the next wire.END_MINUTE_1 to trigger signature comparison. ???
 		fMemPool.addDirBlockSig(dbs)
 
@@ -536,9 +536,9 @@ func processDirBlockSig() error {
 		return nil
 	}
 	totalServerNum := localServer.FederateServerCount()
-	fmt.Printf("By EOM_1, there're %d dirblock signatures arrived out of %d federate servers.",
+	fmt.Printf("By EOM_1, there're %d dirblock signatures arrived out of %d federate servers.\n",
 		len(dbsigs), totalServerNum)
-	procLog.Info(spew.Sdump(dbsigs))
+	fmt.Println("DirBlockSigPool: ", spew.Sdump(dbsigs))
 
 	dgsMap := make(map[string][]*wire.MsgDirBlockSig)
 	for _, v := range dbsigs {
@@ -553,6 +553,7 @@ func processDirBlockSig() error {
 			dgsMap[key] = val
 		}
 		val = append(val, v)
+		fmt.Printf("key=%s, dir block sig=%+v\n", key, val)
 	}
 
 	var winner *wire.MsgDirBlockSig
@@ -605,9 +606,9 @@ func processAck(msg *wire.MsgAck) error {
 	if !serverPubKey.Verify(bytes, &msg.Signature) {
 		//to-do
 		//return errors.New(fmt.Sprintf("Invalid signature in Ack = %s\n", spew.Sdump(msg)))
-		fmt.Println("verify dir block signature: FAILED")
+		fmt.Println("verify ack signature: FAILED")
 	} else {
-		fmt.Println("verify dir block signature: SUCCESS")
+		fmt.Println("verify ack signature: SUCCESS")
 	}
 	fmt.Printf("msg.Height=%d, dchain.NextDBHeight=%d, db.FetchNextBlockHeightCache()=%d\n",
 		msg.Height, dchain.NextDBHeight, db.FetchNextBlockHeightCache())
@@ -625,7 +626,7 @@ func processAck(msg *wire.MsgAck) error {
 	if msg.IsEomAck() {
 		missingAcks = fMemPool.getMissingMsgAck(msg)
 		if len(missingAcks) > 0 {
-			fmt.Printf("missing Acks total: %d", len(missingAcks)) //, spew.Sdump(missingAcks))
+			fmt.Printf("missing Acks total: %d\n", len(missingAcks)) //, spew.Sdump(missingAcks))
 			//todo: request missing acks from Leader
 			//how to coordinate new processAck when missing acks come ???
 			//
@@ -1397,6 +1398,7 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 			SourceNodeID: localServer.nodeID, // use peer.nodeID ???
 		}
 		outMsgQueue <- msg
+		fmt.Println("my own: addDirBlockSig: ", spew.Sdump(msg))
 		fMemPool.addDirBlockSig(msg)
 	}
 	return nil

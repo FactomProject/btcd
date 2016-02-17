@@ -90,8 +90,12 @@ func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
 	for i = 0; i <= ack.Index; i++ {
 		if mp.ackpool[i] == nil {
 			// missing an ACK here. request for this ack
-			a := ack.Clone()
-			a.Index = i
+			//a := ack.Clone()
+			//a.Index = i
+			a := &wire.MsgAck{
+				Height: ack.Height,
+				Index:  i,
+			}
 			missingAcks = append(missingAcks, a)
 			procLog.Infof("Missing an Ack at index=%d", i)
 		}
