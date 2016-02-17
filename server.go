@@ -705,8 +705,10 @@ func (s *server) peerHandler() {
 		s.handleAddPeerMsg(state, newOutboundPeer(s, addr, true, 0))
 	}
 
+	go StartProcessor()
+
 	// if nothing else happens, wake us up soon.
-	time.AfterFunc(10*time.Second, func() { s.wakeup <- struct{}{} })
+	time.AfterFunc(10*time.Second, func() { s.wakeup <- struct{}{} }) //10*
 
 out:
 	for {
@@ -1033,11 +1035,11 @@ func (s *server) Start() {
 	s.wg.Add(1)
 	go s.peerHandler()
 
-	s.wg.Add(1)
-	go StartProcessor()
+	//s.wg.Add(1)
+	//go StartProcessor()
 
 	//s.wg.Add(1)
-	//go nextLeaderHandler()
+	//go s.nextLeaderHandler()
 
 	if s.nat != nil {
 		s.wg.Add(1)
@@ -1388,6 +1390,7 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 
 	_, newestHeight, _ := db.FetchBlockHeightCache()
 	h := uint32(newestHeight)
+	srvrLog.Info("newestHeight=", h)
 	if common.SERVER_NODE == s.nodeType {
 		fedServer := &federateServer{
 			FirstJoined: h,

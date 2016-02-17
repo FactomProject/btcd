@@ -55,7 +55,7 @@ func (mp *ftmMemPool) getDirBlockSigPool() []*wire.MsgDirBlockSig {
 // addAck add the ack to ackpool and find it's acknowledged msg.
 // then add them to ftmMemPool if available. otherwise return missing acked msg.
 func (mp *ftmMemPool) addAck(ack *wire.MsgAck) *wire.Message {
-	fmt.Printf("addAck: %+v\n", ack)
+	fmt.Printf("ftmMemPool.addAck: %+v\n", ack)
 	mp.ackpool[ack.Index] = ack
 	if ack.Type == wire.ACK_REVEAL_ENTRY || ack.Type == wire.ACK_REVEAL_CHAIN ||
 		ack.Type == wire.ACK_COMMIT_CHAIN || ack.Type == wire.ACK_COMMIT_ENTRY {
@@ -99,11 +99,12 @@ func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
 	return missingAcks
 }
 
-func (mp *ftmMemPool) assembleEomMessages(ack *wire.MsgAck) error {
+func (mp *ftmMemPool) assembleFollowerProcessList(ack *wire.MsgAck) error {
 	// simply validation
-	if ack.Type != wire.END_MINUTE_10 && mp.ackpool[len(mp.ackpool)-1] != ack {
+	if ack.Type != wire.END_MINUTE_10 || mp.ackpool[len(mp.ackpool)-1] != ack {
 		return fmt.Errorf("the last ack has to be END_MINUTE_10")
 	}
+	fmt.Println("acpool.len=", len(mp.ackpool))
 	for i := 0; i < len(mp.ackpool); i++ {
 		if mp.ackpool[i] == nil {
 			// missing an ACK here
@@ -112,7 +113,11 @@ func (mp *ftmMemPool) assembleEomMessages(ack *wire.MsgAck) error {
 			fmt.Printf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack))
 			continue
 		}
-		plMgr.AddToLeadersProcessList(mp.ackpool[i], mp.ackpool[i].Affirmation, mp.ackpool[i].Type)
+		var msg wire.Message
+		if mp.ackpool[i].Affirmation != nil {
+			msg = mp.pool[*mp.ackpool[i].Affirmation]
+		}
+		plMgr.AddToFollowersProcessList(msg, mp.ackpool[i])
 	}
 	return nil
 }
