@@ -721,8 +721,8 @@ func (b *blockManager) startSyncFactom(peers *list.List) {
 
 		bestPeer.PushGetDirBlocksMsg(locator, &zeroBtcHash)
 		b.syncPeer = bestPeer
-		blockSyncing = true
-		bmgrLog.Infof("blockSyncing=%t", blockSyncing)
+		//blockSyncing = true
+		//bmgrLog.Infof("blockSyncing=%t", blockSyncing)
 	} else {
 		bmgrLog.Warnf("No sync peer candidates available")
 	}

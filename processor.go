@@ -155,21 +155,23 @@ func InitProcessor(ldb database.Db) {
 func StartProcessor() {
 	//initProcessor()
 	procLog.Info("StartProcessor: blockSyncing=", blockSyncing)
-	if dchain.NextDBHeight == 0 && nodeMode == common.SERVER_NODE && !blockSyncing {
+	if dchain.NextDBHeight == 0 && localServer.IsLeader() { //nodeMode == common.SERVER_NODE && !blockSyncing {
 		buildGenesisBlocks()
 	}
 	procLog.Debug("**** after creating genesis block: dchain.NextDBHeight=", dchain.NextDBHeight)
 
 	// Initialize timer for the open dblock before processing messages
-	if nodeMode == common.SERVER_NODE && !blockSyncing {
+	//if nodeMode == common.SERVER_NODE && !blockSyncing {
+	if localServer.IsLeader() {
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,
 			inMsgQueue:       inMsgQueue,
 		}
 		go timer.StartBlockTimer()
 	} else {
-		// start the go routine to process the blocks and entries downloaded
-		// from peers
+		//if !localServer.IsLeader() {
+		// process the blocks and entries downloaded from peers
+		// this is needed for clients and followers when sync up
 		procLog.Info("StartProcessor: validateAndStoreBlocks")
 		go validateAndStoreBlocks(fMemPool, db, dchain)
 	}
@@ -228,8 +230,8 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 	//procLog.Infof("serveMsgRequest: %s", spew.Sdump(msg))
 	switch msg.Command() {
 	case wire.CmdCommitChain:
-		msgCommitChain, ok := msg.(*wire.MsgCommitChain)
-		if ok && msgCommitChain.IsValid() {
+		msgCommitChain, _ := msg.(*wire.MsgCommitChain)
+		if msgCommitChain.IsValid() { //&& !blockSyncing {
 
 			h := msgCommitChain.CommitChain.GetSigHash().Bytes()
 			t := msgCommitChain.CommitChain.GetMilliTime() / 1000
@@ -242,8 +244,6 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 			if err != nil {
 				return err
 			}
-		} else {
-			return errors.New("Error in processing msg:" + spew.Sdump(msg))
 		}
 		// Broadcast the msg to the network if no errors
 		outMsgQueue <- msg
@@ -284,18 +284,53 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 
 	case wire.CmdAck:
 		// only post-syncup followers need to deal with Ack
-		if nodeMode != common.SERVER_NODE || localServer.IsLeader() { //|| blockSyncing {
+		if nodeMode != common.SERVER_NODE || localServer.IsLeader() {
 			return nil
 		}
-		// for followers only,
 		ack, _ := msg.(*wire.MsgAck)
-		fmt.Printf("in case.CmdAck:: Ack.Height=%d, dchain.NextDBHeight=%d, blockSyncing=%v\n",
-			ack.Height, dchain.NextDBHeight, blockSyncing)
-		//???
-		if ack.Height == dchain.NextDBHeight && blockSyncing {
+		_, latestHeight, _ := db.FetchBlockHeightCache()
+		fmt.Printf("in case.CmdAck:: Ack.Height=%d, dchain.NextDBHeight=%d, db.latestDBHeight=%d, blockSyncing=%v\n",
+			ack.Height, dchain.NextDBHeight, latestHeight, blockSyncing)
+		//dchain.NextDBHeight is the dir block height for the network
+		//update it with ack height from the leader if necessary
+		if dchain.NextDBHeight < ack.Height {
+			dchain.NextDBHeight = ack.Height
+		}
+		//switch from block syncup to block build
+		//if dchain.NextDBHeight == db.FetchBlockHeightCache()+1 {	//&& blockSyncing {
+		if IsDChainInSync() && blockSyncing {
 			blockSyncing = false
 			firstBlockHeight = ack.Height
-			fmt.Println("** reset blockSyncing to FLASE, firstBlockHeight=", firstBlockHeight)
+			fmt.Println("** reset blockSyncing=false, firstBlockHeight=", firstBlockHeight)
+		}
+		if blockSyncing {
+			return nil
+		}
+
+		//msgEom, _ := msg.(*wire.MsgInt_EOM)
+		//var singleServerMode = localServer.isSingleServerMode()
+		//fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
+		//"singleServerMode=", singleServerMode)
+
+		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
+		// to trigger signature comparison of last round.
+		// todo: when to start? can NOT do this for the first EOM_1 ???
+		if ack.Type == wire.END_MINUTE_1 {
+			// need to bypass the first block of newly-joined follower, if
+			// this is 11th minute: ack.NextDBlockHeight-1 == firstBlockHeight
+			// or is 1st minute: fMemPool.LenDirBlockSig() == 0
+			fmt.Println("bypass save this block?? firstBlockHeight=", firstBlockHeight, ", ack=", spew.Sdump(ack))
+			if fMemPool.LenDirBlockSig() > 0 { //&& ack.Height-1 != firstBlockHeight { //!singleServerMode &&
+				go processDirBlockSig()
+			} else {
+				// three cases go in here
+				// a. newDBlock is nil: first EOM_1 with no sync up needed for this follower
+				// b. newDBlock is not nil but usually wrong with missing msg or ack: first EOM_1 after sync up done for this follower. need to bypass save but need sync up ???
+				// c. newDBlock is the genesis block or normal single server mode
+				if newDBlock != nil && ack.Height-1 != firstBlockHeight {
+					go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+				}
+			}
 		}
 		err := processAck(ack)
 		if err != nil {
@@ -303,8 +338,10 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		}
 
 	case wire.CmdDirBlockSig:
-		//only when server is building blocks
-		if nodeMode != common.SERVER_NODE || blockSyncing {
+		//only when server is building blocks. relax it for now ???
+		// for client, do nothing; for leader, always add it
+		// for followers, only add it when done with sync up.
+		if nodeMode != common.SERVER_NODE { //|| blockSyncing {
 			return nil
 		}
 		dbs, _ := msg.(*wire.MsgDirBlockSig)
@@ -313,33 +350,6 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		fMemPool.addDirBlockSig(dbs)
 
 	case wire.CmdInt_EOM:
-		if localServer == nil {
-			return nil
-		}
-
-		msgEom, _ := msg.(*wire.MsgInt_EOM)
-		var singleServerMode = localServer.isSingleServerMode()
-		fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
-			"singleServerMode=", singleServerMode)
-		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
-		// to trigger signature comparison of last round.
-		// todo: when to start? can NOT do this for the first EOM_1 ???
-		if msgEom.EOM_Type == wire.END_MINUTE_1 {
-			// need to bypass the first block of newly-joined follower
-			// this is 11th minute.
-			fmt.Println("bypass save this block?? firstBlockHeight=", firstBlockHeight, ", msgEom=", spew.Sdump(msgEom))
-			if !singleServerMode && msgEom.NextDBlockHeight-1 != firstBlockHeight {
-				go processDirBlockSig()
-			} else {
-				// three cases go in here
-				// a. newDBlock is nil: first EOM_1 with no sync up needed for this follower
-				// b. newDBlock is not nil but usually wrong with missing msg or ack: first EOM_1 after sync up done for this follower. need to bypass save but need sync up ???
-				// c. newDBlock is the genesis block or normal single server mode
-				if newDBlock != nil && msgEom.NextDBlockHeight-1 != firstBlockHeight {
-					go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
-				}
-			}
-		}
 		// only the leader need to deal with this and
 		// followers EOM will be driven by Ack of this EOM.
 		fmt.Printf("in case.CmdInt_EOM: localServer.IsLeader=%v\n", localServer.IsLeader())
@@ -352,6 +362,26 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		//if localServer.IsLeader() || singleServerMode {
 		if !localServer.IsLeader() {
 			return nil
+		}
+		// this is only for leader. as followers have no blocktimer
+		msgEom, _ := msg.(*wire.MsgInt_EOM)
+		var singleServerMode = localServer.isSingleServerMode()
+		fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
+			", singleServerMode=", singleServerMode)
+		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
+		// to trigger signature comparison of last round.
+		// todo: when to start? can NOT do this for the first EOM_1 ???
+		if msgEom.EOM_Type == wire.END_MINUTE_1 {
+			// need to bypass the first block of newly-joined follower
+			// this is 11th minute.
+			//fmt.Println("bypass save this block?? firstBlockHeight=", firstBlockHeight, ", msgEom=", spew.Sdump(msgEom))
+			if !singleServerMode && fMemPool.LenDirBlockSig() > 0 { //msgEom.NextDBlockHeight-1 != firstBlockHeight {
+				go processDirBlockSig()
+			} else {
+				if newDBlock != nil { //&& msgEom.NextDBlockHeight-1 != firstBlockHeight {
+					go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+				}
+			}
 		}
 		err := processLeaderEOM(msgEom)
 		if err != nil {
@@ -548,31 +578,46 @@ func processDirBlockSig() error {
 		//}
 		key := v.DirBlockHash.String()
 		val := dgsMap[key]
+		fmt.Printf("key0=%s, dir block sig=%s\n", key, spew.Sdump(val))
 		if val == nil {
+			fmt.Println("sig is nil.")
 			val = make([]*wire.MsgDirBlockSig, 0, 32)
+			val = append(val, v)
+			dgsMap[key] = val
+		} else {
+			val = append(val, v)
 			dgsMap[key] = val
 		}
-		val = append(val, v)
-		fmt.Printf("key=%s, dir block sig=%+v\n", key, val)
+		fmt.Printf("key=%s, dir block sig=%s\n", key, spew.Sdump(dgsMap[key]))
 	}
 
 	var winner *wire.MsgDirBlockSig
 	for k, v := range dgsMap {
-		fmt.Printf("key=%s, number=%d\n", k, len(v))
-		n := float32(len(v) / totalServerNum)
+		n := float32(len(v)) / float32(totalServerNum)
+		fmt.Printf("key=%s, len=%d, n=%v\n", k, len(v), n)
 		if n > float32(0.5) {
 			winner = v[0]
 			break
 		} else if n == float32(0.5) {
 			//to-do: choose what leader has got to break the tie
-			fmt.Println("Got a tie, and need to choose what the leader has for the winner of dirblock sig.")
-			serverID := localServer.GetLeaderPeer().GetNodeID()
+			var leaderID string
+			if localServer.GetLeaderPeer() == nil {
+				leaderID = localServer.nodeID
+			} else {
+				leaderID = localServer.GetLeaderPeer().GetNodeID()
+			}
+			fmt.Println("Got a tie, and need to choose what the leader has for the winner of dirblock sig. leaderPeer=", leaderID)
 			for _, d := range v {
-				fmt.Println("serverID=", serverID, ", fed server id=", d.SourceNodeID)
-				if serverID == d.SourceNodeID {
+				fmt.Println("leaderID=", leaderID, ", fed server id=", d.SourceNodeID)
+				if leaderID == d.SourceNodeID {
 					winner = d
 					break
 				}
+			}
+			// a tie without leader's dir block sig
+			if winner == nil {
+				// ask leader for its dir block sig
+				fmt.Println("a tie without leader's signature. need to ask for it.")
 			}
 		}
 	}
@@ -587,7 +632,7 @@ func processDirBlockSig() error {
 		fmt.Println("No winner in dirblock signature comparison.")
 	}
 	// for leader / follower regime change
-	localServer.latestDBHeight <- newDBlock.Header.DBHeight
+	//localServer.latestDBHeight <- newDBlock.Header.DBHeight
 	go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
 	return nil
 }
@@ -610,15 +655,16 @@ func processAck(msg *wire.MsgAck) error {
 	} else {
 		fmt.Println("verify ack signature: SUCCESS")
 	}
-	fmt.Printf("msg.Height=%d, dchain.NextDBHeight=%d, db.FetchNextBlockHeightCache()=%d\n",
-		msg.Height, dchain.NextDBHeight, db.FetchNextBlockHeightCache())
+	_, latestHeight, _ := db.FetchBlockHeightCache()
+	fmt.Printf("** ack.Height=%d, dchain.NextDBHeight=%d, db.FetchBlockHeightCache()=%d\n",
+		msg.Height, dchain.NextDBHeight, latestHeight)
 
 	missingMsg := fMemPool.addAck(msg)
 	if missingMsg != nil {
 		//todo: request missing acks from Leader
 		//how to coordinate new processAck when missing acks come ???
 		//
-		fmt.Println("missing msg: ", spew.Sdump(missingMsg))
+		fmt.Println("** missing msg: ", spew.Sdump(missingMsg))
 	}
 
 	var missingAcks []*wire.MsgAck
@@ -640,8 +686,10 @@ func processAck(msg *wire.MsgAck) error {
 	}
 	// for firstBlockHeight, ususally there's some msg or ack missing
 	// let's bypass the first one to give the follower time to round up.
-	if msg.Type == wire.END_MINUTE_10 && msg.Height != firstBlockHeight {
+	// todo: for this block (firstBlockHeight), we need to request for it. ???
+	if msg.Type == wire.END_MINUTE_10 { //&& msg.Height != firstBlockHeight {
 		// followers build Blocks
+		fmt.Println("follower buildBlocks, height=", msg.Height)
 		err = buildBlocks() //broadcast new dir block sig
 		if err != nil {
 			return err
@@ -1311,7 +1359,6 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	chain.AddDBlockToDChain(block)
 	chain.NextDBHeight++
 	chain.NextBlock, _ = common.CreateDBlock(chain, block, 10)
-	//chain.NextDBHeight++
 	chain.BlockMutex.Unlock()
 	procLog.Infof("newDirectoryBlock: new dbBlock=%s", spew.Sdump(block.Header))
 	procLog.Debug("**** after creating new dir block, dchain.NextDBHeight=", chain.NextDBHeight)
@@ -1323,10 +1370,6 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	// send out dir block sig first
 	if dchain.NextDBHeight > 1 {
 		SignDirectoryBlock(block)
-		//} else {
-		// for genesis block, no action here for now ???
-		//procLog.Debug("genesis blocks created. to-be-saved.")
-		//go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, nil)
 	}
 	return block
 }
@@ -1335,6 +1378,7 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 	ecblock *common.ECBlock, fblock block.IFBlock, eblocks []*common.EBlock) error {
 	// save blocks to database in a signle transaction ???
+	fmt.Println("saveBlocks: height=", dblock.Header.DBHeight)
 	db.ProcessFBlockBatch(fblock)
 	exportFctBlock(fblock)
 	procLog.Infof("Save Factoid Block: block " + strconv.FormatUint(uint64(fblock.GetDBHeight()), 10))
@@ -1362,6 +1406,7 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 	db.UpdateBlockHeightCache(dblock.Header.DBHeight, commonHash)
 	db.UpdateNextBlockHeightCache(dchain.NextDBHeight)
 	exportDBlock(dblock)
+	fmt.Println("saveBlocks: done=", dblock.Header.DBHeight)
 
 	placeAnchor(dblock)
 	fMemPool.resetDirBlockSigPool()
@@ -1374,6 +1419,9 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 	if nodeMode == common.SERVER_NODE && dchain.NextDBHeight > 0 { //&& localServer.isLeader {
 		fmt.Println("SignDirectoryBlock: dchain.NextDBHeight: ", dchain.NextDBHeight) // 11th minute
 		// get the previous directory block from db
+		// since saveBlocks happens at 11th minute, almost 1 minute after buildBlocks
+		// so the latest block height in database should be dchain.NextDBHeight - 2
+		// and newdb.DBHeight should be dchain.NextDBHeight - 1
 		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
 		//????
 		if dbBlock == nil {
@@ -1407,8 +1455,18 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 // Place an anchor into btc
 func placeAnchor(dblock *common.DirectoryBlock) error {
 	if localServer.isLeader || localServer.isSingleServerMode() {
+		fmt.Println("placeAnchor: height=", dblock.Header.DBHeight)
 		anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(dblock))
 		go anchor.SendRawTransactionToBTC(dblock.KeyMR, dblock.Header.DBHeight)
 	}
 	return nil
+}
+
+//IsDChainInSync shows if dchain is in sync with network dbheight.
+func IsDChainInSync() bool {
+	_, latestHeight, _ := db.FetchBlockHeightCache()
+	if dchain.NextDBHeight == uint32(latestHeight)+1 {
+		return true
+	}
+	return false
 }

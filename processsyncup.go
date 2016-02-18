@@ -348,6 +348,11 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 	commonHash, _ := common.CreateHash(b)
 	db.UpdateBlockHeightCache(b.Header.DBHeight, commonHash)
 
+	// update the global network dirblock chain height
+	if dchain.NextDBHeight <= b.Header.DBHeight {
+		dchain.NextDBHeight = b.Header.DBHeight + 1
+	}
+
 	// for debugging
 	exportDBlock(b)
 

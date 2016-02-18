@@ -44,6 +44,10 @@ func (mp *ftmMemPool) addDirBlockSig(dbsig *wire.MsgDirBlockSig) {
 	mp.dirBlockSigs = append(mp.dirBlockSigs, dbsig)
 }
 
+func (mp *ftmMemPool) LenDirBlockSig() int {
+	return len(mp.dirBlockSigs)
+}
+
 func (mp *ftmMemPool) resetDirBlockSigPool() {
 	mp.dirBlockSigs = make([]*wire.MsgDirBlockSig, 0, 32)
 }

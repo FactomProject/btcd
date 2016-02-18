@@ -705,8 +705,6 @@ func (s *server) peerHandler() {
 		s.handleAddPeerMsg(state, newOutboundPeer(s, addr, true, 0))
 	}
 
-	go StartProcessor()
-
 	// if nothing else happens, wake us up soon.
 	time.AfterFunc(10*time.Second, func() { s.wakeup <- struct{}{} }) //10*
 
@@ -1036,15 +1034,18 @@ func (s *server) Start() {
 	go s.peerHandler()
 
 	//s.wg.Add(1)
-	//go StartProcessor()
-
-	//s.wg.Add(1)
 	//go s.nextLeaderHandler()
 
 	if s.nat != nil {
 		s.wg.Add(1)
 		go s.upnpUpdateThread()
 	}
+
+	// wait for peer to start and exchange version msg
+	// todo: coordinate this with a channel
+	time.Sleep(3 * time.Second)
+	s.wg.Add(1)
+	go StartProcessor()
 }
 
 // Stop gracefully shuts down the server by stopping and disconnecting all
@@ -1403,6 +1404,8 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 
 	if s.isLeader {
 		//s.NewLeader(h)
+	} else {
+		blockSyncing = true
 	}
 
 	return &s, nil
