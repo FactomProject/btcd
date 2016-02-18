@@ -630,10 +630,16 @@ func processDirBlockSig() error {
 		// how to coordinate when the response comes ???
 		//panic("No winner in dirblock signature comparison.")
 		fmt.Println("No winner in dirblock signature comparison.")
+	} else {
+		fmt.Println("winner: ", spew.Sdump(winner))
 	}
 	// for leader / follower regime change
 	//localServer.latestDBHeight <- newDBlock.Header.DBHeight
-	go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+
+	// for followers, bypass the first block locally generated
+	if localServer.IsLeader() || newDBlock.Header.DBHeight != firstBlockHeight {
+		go saveBlocks(newDBlock, newABlock, newECBlock, newFBlock, newEBlocks)
+	}
 	return nil
 }
 
@@ -1167,8 +1173,9 @@ func buildBlocks() error {
 	initProcessListMgr()
 
 	// should have a long-lasting block timer ???
-	// Initialize timer for the new dblock
-	if nodeMode == common.SERVER_NODE && !blockSyncing {
+	// Initialize timer for the new dblock, only for leader
+	//if nodeMode == common.SERVER_NODE && !blockSyncing {
+	if localServer.IsLeader() {
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,
 			inMsgQueue:       inMsgQueue,
@@ -1422,11 +1429,11 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 		// since saveBlocks happens at 11th minute, almost 1 minute after buildBlocks
 		// so the latest block height in database should be dchain.NextDBHeight - 2
 		// and newdb.DBHeight should be dchain.NextDBHeight - 1
-		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
+		//dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 1)
 		//????
-		if dbBlock == nil {
-			dbBlock, _ = db.FetchDBlockByHeight(dchain.NextDBHeight - 2)
-		}
+		//if dbBlock == nil {
+		dbBlock, _ := db.FetchDBlockByHeight(dchain.NextDBHeight - 2)
+		//}
 		fmt.Printf("SignDirBlock: dbBlock from db=%s\n", spew.Sdump(dbBlock.Header))
 		fmt.Printf("SignDirBlock: new dbBlock=%s\n", spew.Sdump(newdb.Header))
 		dbHeaderBytes, _ := dbBlock.Header.MarshalBinary()
@@ -1437,7 +1444,9 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 		//create and broadcast dir block sig message
 		dbHeaderBytes, _ = newdb.Header.MarshalBinary()
 		h := common.Hash{}
-		h.SetBytes(dbHeaderBytes[:])
+		//h.SetBytes(dbHeaderBytes[:]) //wrong
+		hash := common.Sha(dbHeaderBytes)
+		h.SetBytes(hash.GetBytes())
 		sig = serverPrivKey.Sign(dbHeaderBytes)
 		msg := &wire.MsgDirBlockSig{
 			DBHeight:     newdb.Header.DBHeight,
