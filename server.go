@@ -47,10 +47,10 @@ const (
 	defaultMaxOutbound = 8
 
 	// default block number the leader will preside.
-	defaultLeaderTerm = 5
+	defaultLeaderTerm = 1
 
 	// default DBHeight in advance to broadcast notification of next leader message.
-	defaultNotifyDBHeight = 2
+	defaultNotifyDBHeight = 0
 )
 
 var prevConnected int
@@ -149,7 +149,7 @@ type server struct {
 	latestDBHeight   chan uint32
 	federateServers  *list.List
 	myLeaderPolicy   *leaderPolicy
-	nextLeaderPolicy *leaderPolicy
+	nextLeaderPolicy *leaderPolicy //maybe not needed ???
 }
 
 type leaderPolicy struct {
@@ -1033,8 +1033,8 @@ func (s *server) Start() {
 	s.wg.Add(1)
 	go s.peerHandler()
 
-	//s.wg.Add(1)
-	//go s.nextLeaderHandler()
+	s.wg.Add(1)
+	go s.nextLeaderHandler()
 
 	if s.nat != nil {
 		s.wg.Add(1)
@@ -1046,6 +1046,9 @@ func (s *server) Start() {
 	time.Sleep(3 * time.Second)
 	s.wg.Add(1)
 	go StartProcessor()
+
+	s.wg.Add(1)
+	go s.nextLeaderHandler()
 }
 
 // Stop gracefully shuts down the server by stopping and disconnecting all
@@ -1403,7 +1406,10 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 	}
 
 	if s.isLeader {
-		//s.NewLeader(h)
+		//for genesis block, it's saved in 11th minute. so wait for a while.
+		//time.Sleep(7 * time.Second)
+		s.wg.Add(1)
+		go s.NewLeader(h)
 	} else {
 		blockSyncing = true
 	}
@@ -1485,6 +1491,7 @@ func (s *server) isSingleServerMode() bool {
 
 // NewLeader adds a new peer that has already been connected to the server.
 func (s *server) NewLeader(height uint32) {
+	srvrLog.Tracef("into NewLeader: %d", height)
 	s.isLeader = true
 	policy := &leaderPolicy{
 		StartDBHeight:  height + 1,
@@ -1501,48 +1508,63 @@ func (s *server) nextLeaderHandler() {
 		case h := <-s.latestDBHeight:
 			s.handleNextLeader(h)
 		default:
-
 		}
 	}
 }
 
 func (s *server) handleNextLeader(height uint32) {
-	srvrLog.Tracef("into handleNextLeaderMsg")
-	if !s.IsLeader() || !s.isLeaderElected {
+	srvrLog.Tracef("handleNextLeader starts: current height=%d, myLeaderPolicy=%+v",
+		height, s.myLeaderPolicy)
+	if !(s.IsLeader() || s.isLeaderElected) {
+		return
+	}
+	if s.federateServers.Len() <= 1 {
+		fmt.Println("It's a single server mode.")
 		return
 	}
 	if s.isLeaderElected {
+		fmt.Printf("handleNextLeader: isLeaderElected=%t\n", s.isLeaderElected)
 		if height > s.myLeaderPolicy.StartDBHeight {
 			fmt.Printf("height not right. height=%d, policy=%s\n",
 				height, spew.Sdump(s.myLeaderPolicy))
 			return
-		} else if height == s.myLeaderPolicy.NotifyDBHeight {
+		} else if height == s.myLeaderPolicy.StartDBHeight {
 			// regime change for leader-elected
+			fmt.Println("handleNextLeader: ** height equal, regime change for leader-elected.")
 			s.isLeader = true
 			s.isLeaderElected = false
 		}
 		return
 	}
 	// this is a current leader
-	if height <= s.myLeaderPolicy.StartDBHeight ||
-		height > s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term {
-		fmt.Printf("height not right. height=%d, policy=%s\n",
+	var next *federateServer
+	fmt.Printf("handleNextLeader: isLeader=%t\n", s.isLeader)
+	//fmt.Printf("handleNextLeader: federateServers=%s\n", spew.Sdump(s.federateServers))
+
+	// when this leader is changed from single server mode to federate servers,``
+	// its policy could be outdated. update its polidy now.
+	//if height > s.myLeaderPolicy.StartDBHeight {
+	if height > s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term {
+		s.myLeaderPolicy.StartDBHeight = height
+		fmt.Printf("handleNextLeader: update policy. height=%d, policy=%s\n",
 			height, spew.Sdump(s.myLeaderPolicy))
 		return
-	} else if height == s.myLeaderPolicy.NotifyDBHeight {
+
+	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.NotifyDBHeight {
 		// determine who's the next qualified leader.
-		if s.federateServers.Len() <= 1 {
-			fmt.Println("It's a single server mode.")
-		}
 		// simple round robin for now
-		var next *federateServer
 		for e := s.federateServers.Front(); e != nil; e = e.Next() {
-			s.federateServers.MoveToBack(e)
 			fed := e.Value.(*federateServer)
+			//fmt.Println(spew.Sdump(fed))
 			if fed.Peer != nil {
 				next = fed
+				//s.federateServers.MoveToBack(e)
 				break
 			}
+		}
+		fmt.Printf("handleNextLeader: next leader choosen: %s\n", spew.Sdump(next))
+		if next == nil {
+			return
 		}
 		// starting DBHeight for next leader is, by default,
 		// current leader's starting height + its term
@@ -1553,14 +1575,20 @@ func (s *server) handleNextLeader(height uint32) {
 			Term:           defaultLeaderTerm,
 		}
 		s.nextLeaderPolicy = policy
+		fmt.Printf("handleNextLeader: before broadcast notoficiation: next leader policy=%+v\n", policy)
 
 		sig := s.privKey.Sign([]byte(s.nodeID + next.Peer.nodeID))
 		msg := wire.NewNextLeaderMsg(s.nodeID, next.Peer.nodeID, h, sig)
+		fmt.Printf("handleNextLeader: broadcast NextLeaderMsg=%s\n", spew.Sdump(msg))
+
 		s.BroadcastMessage(msg)
+		s.isLeaderElected = true
 		s.myLeaderPolicy.Notified = true
 	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term {
 		//regime change for current leader
-		s.isLeader = true
+		//need to check if the next leader elected is still alive ???
+		fmt.Println("handleNextLeader: ** height equal, regime change for CURRENT LEADER.")
+		s.isLeader = false
 		s.isLeaderElected = false
 		s.myLeaderPolicy = nil
 		s.nextLeaderPolicy = nil

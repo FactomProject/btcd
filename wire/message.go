@@ -60,7 +60,7 @@ const (
 	CmdEOM            = "eom"
 	CmdDirBlockSig    = "dirblocksig"
 	CmdNextLeader     = "nextleader"
-	CmdNextLeaderResp = "nextleaderresp"
+	CmdNextLeaderResp = "nextleadresp"
 )
 
 // MaxAppMsgPayload is the maximum bytes a factom app message can be in bytes.

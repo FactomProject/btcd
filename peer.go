@@ -471,11 +471,12 @@ func (p *peer) handleVersionMsg(msg *wire.MsgVersion) {
 			_, newestHeight, _ := db.FetchBlockHeightCache()
 			h := uint32(newestHeight)
 			fedServer := &federateServer{
+				Peer:        p,
 				FirstJoined: h,
 			}
-			if p.server.isLeader {
-				fedServer.LeaderSince = h + 1
-			}
+			//if p.server.isLeader {
+			//fedServer.LeaderSince = h + 1
+			//}
 			p.server.federateServers.PushBack(fedServer)
 			peerLog.Debugf("Signature verified successfully & add it as a new federate server: %s, total=%d",
 				p, p.server.FederateServerCount())
@@ -2355,49 +2356,53 @@ func (p *peer) GetNodeID() string {
 }
 
 func (p *peer) handleNextLeaderMsg(msg *wire.MsgNextLeader) {
-	peerLog.Infof("handleNextLeaderMsg: %s", spew.Sdump(msg))
+	fmt.Printf("handleNextLeaderMsg: %s\n", spew.Sdump(msg))
 	if !msg.Sig.Pub.Verify([]byte(msg.CurrLeaderID+msg.NextLeaderID), msg.Sig.Sig) {
 		fmt.Println("signature verify FAILED.")
 		return
 	}
 	if !(p.server.leaderPeer != nil && p.server.leaderPeer.nodeID == msg.CurrLeaderID) {
-		fmt.Printf("leader verify FAILED: my leader is %s, but msg.leader is %s\n",
+		fmt.Printf("handleNextLeaderMsg: leader verify FAILED: my leader is %s, but msg.leader is %s\n",
 			p.server.leaderPeer.nodeID, msg.CurrLeaderID)
+		//return ???
 	}
 	if p.server.nodeID == msg.NextLeaderID {
-		fmt.Println("I'm the next leader elected. startingHeight=", msg.StartDBHeight)
+		fmt.Println("handleNextLeaderMsg: I'm the next leader elected. startingHeight=", msg.StartDBHeight)
 		policy := &leaderPolicy{
 			NextLeader:     p,
 			StartDBHeight:  msg.StartDBHeight,
 			NotifyDBHeight: defaultNotifyDBHeight,
 			Term:           defaultLeaderTerm,
-			Notified:       true,
-			Confirmed:      true,
+			//Notified:       true,
+			//Confirmed:      true,
 		}
 		p.server.myLeaderPolicy = policy
 		p.server.isLeaderElected = true
 		sig := p.server.privKey.Sign([]byte(msg.CurrLeaderID + msg.NextLeaderID))
 		resp := wire.NewNextLeaderRespMsg(msg.CurrLeaderID, msg.NextLeaderID,
 			msg.StartDBHeight, sig, true)
+		fmt.Printf("handleNextLeaderMsg: sending NextLeaderRespMsg=%s\n", spew.Sdump(resp))
 		p.server.BroadcastMessage(resp)
 	}
 	return
 }
 
 func (p *peer) handleNextLeaderRespMsg(msg *wire.MsgNextLeaderResp) {
-	peerLog.Infof("handleNextLeaderRespMsg: %s", spew.Sdump(msg))
+	fmt.Printf("handleNextLeaderRespMsg: %s\n", spew.Sdump(msg))
 	if !msg.Sig.Pub.Verify([]byte(msg.CurrLeaderID+msg.NextLeaderID), msg.Sig.Sig) {
 		fmt.Println("signature verify FAILED.")
 		return
 	}
-	if !(p.server.leaderPeer != nil && p.server.leaderPeer.nodeID == msg.CurrLeaderID) {
-		fmt.Printf("leader verify FAILED: my leader is %s, but msg.leader is %s\n",
-			p.server.leaderPeer.nodeID, msg.CurrLeaderID)
-	}
-	if p.server.nodeID == msg.NextLeaderID {
-		fmt.Println("next leader CONFIRMED. startingHeight=", msg.StartDBHeight)
+	//if !(p.server.leaderPeer != nil && p.server.leaderPeer.nodeID == msg.CurrLeaderID) {
+	if p.server.nodeID != msg.CurrLeaderID {
+		fmt.Printf("handleNextLeaderRespMsg: leader verify FAILED: my leader is %s, but msg.leader is %s\n",
+			p.server.nodeID, msg.CurrLeaderID)
+		//return
+	} else {
+		//if p.server.nodeID == msg.NextLeaderID {
+		fmt.Printf("handleNextLeaderRespMsg: next leader CONFIRMED: %s. startingHeight=%d\n", msg.NextLeaderID, msg.StartDBHeight)
 		p.server.myLeaderPolicy.Confirmed = true
-		p.server.isLeaderElected = true
+		p.server.isLeaderElected = false
 	}
 	return
 }

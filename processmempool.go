@@ -107,26 +107,50 @@ func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
 }
 
 func (mp *ftmMemPool) assembleFollowerProcessList(ack *wire.MsgAck) error {
-	// simply validation
-	if ack.Type != wire.END_MINUTE_10 { //|| mp.ackpool[len(mp.ackpool)-1] != ack {
-		return fmt.Errorf("the last ack has to be END_MINUTE_10")
-	}
-	procLog.Info("acpool.len=", len(mp.ackpool)) //, spew.Sdump(mp.ackpool))
+	//do a simple happy path for now ???
+	var height uint32
 	for i := 0; i < len(mp.ackpool); i++ {
-		if mp.ackpool[i] == nil {
-			// missing an ACK here
-			// todo: request for this ack, panic for now
-			//panic(fmt.Sprintf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack)))
-			//procLog.Infof("Missing an Ack in ackpool at index=%d\n", i)
-			continue
+		if mp.ackpool[i] != nil {
+			height = mp.ackpool[i].Height
+			break
 		}
-		var msg wire.Message
-		if mp.ackpool[i].Affirmation != nil {
-			msg = mp.pool[*mp.ackpool[i].Affirmation]
+	}
+	fmt.Println("assembleFollowerProcessList: target height=", height)
+	for i := 0; i < 10; i++ {
+		msgEom := &wire.MsgInt_EOM{
+			EOM_Type:         wire.END_MINUTE_1 + byte(i),
+			NextDBlockHeight: height,
 		}
-		plMgr.AddToFollowersProcessList(msg, mp.ackpool[i])
+		plMgr.AddToLeadersProcessList(msgEom, nil, msgEom.EOM_Type)
+		if ack.ChainID == nil {
+			ack.ChainID = dchain.ChainID
+		}
 	}
 	return nil
+
+	//???
+	/*
+		// simply validation
+		if ack.Type != wire.END_MINUTE_10 || mp.ackpool[len(mp.ackpool)-1] != ack {
+			return fmt.Errorf("the last ack has to be END_MINUTE_10")
+		}
+		procLog.Info("acpool.len=", len(mp.ackpool)) //, spew.Sdump(mp.ackpool))
+		for i := 0; i < len(mp.ackpool); i++ {
+			if mp.ackpool[i] == nil {
+				// missing an ACK here
+				// todo: request for this ack, panic for now
+				//panic(fmt.Sprintf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack)))
+				//procLog.Infof("Missing an Ack in ackpool at index=%d\n", i)
+				continue
+			}
+			var msg wire.Message
+			if mp.ackpool[i].Affirmation != nil {
+				msg = mp.pool[*mp.ackpool[i].Affirmation]
+			}
+			plMgr.AddToFollowersProcessList(msg, mp.ackpool[i])
+		}
+		return nil
+	*/
 }
 
 // Add a factom message to the  Mem pool
