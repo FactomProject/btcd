@@ -13,7 +13,6 @@ import (
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/consensus"
 	"github.com/FactomProject/btcd/wire"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // ftmMemPool is used as a source of factom transactions
@@ -34,9 +33,9 @@ func (mp *ftmMemPool) initFtmMemPool() error {
 	mp.pool = make(map[wire.ShaHash]wire.Message)
 	mp.orphans = make(map[wire.ShaHash]wire.Message)
 	mp.blockpool = make(map[string]wire.Message)
-	mp.ackpool = make([]*wire.MsgAck, 20000, 20000)
+	mp.ackpool = make([]*wire.MsgAck, 100, 20000)
 	mp.dirBlockSigs = make([]*wire.MsgDirBlockSig, 0, 32)
-	mp.processListItems = make([]*consensus.ProcessListItem, 20000, 20000)
+	mp.processListItems = make([]*consensus.ProcessListItem, 100, 20000)
 	return nil
 }
 
@@ -59,7 +58,7 @@ func (mp *ftmMemPool) getDirBlockSigPool() []*wire.MsgDirBlockSig {
 // addAck add the ack to ackpool and find it's acknowledged msg.
 // then add them to ftmMemPool if available. otherwise return missing acked msg.
 func (mp *ftmMemPool) addAck(ack *wire.MsgAck) *wire.Message {
-	fmt.Printf("ftmMemPool.addAck: %+v\n", ack)
+	procLog.Infof("ftmMemPool.addAck: %+v\n", ack)
 	mp.ackpool[ack.Index] = ack
 	if ack.Type == wire.ACK_REVEAL_ENTRY || ack.Type == wire.ACK_REVEAL_CHAIN ||
 		ack.Type == wire.ACK_COMMIT_CHAIN || ack.Type == wire.ACK_COMMIT_ENTRY {
@@ -81,7 +80,7 @@ func (mp *ftmMemPool) addAck(ack *wire.MsgAck) *wire.Message {
 		pli := &consensus.ProcessListItem{
 			Ack:     ack,
 			Msg:     ack,
-			MsgHash: ack.Affirmation,
+			MsgHash: nil,
 		}
 		mp.processListItems[ack.Index] = pli
 	}
@@ -109,16 +108,16 @@ func (mp *ftmMemPool) getMissingMsgAck(ack *wire.MsgAck) []*wire.MsgAck {
 
 func (mp *ftmMemPool) assembleFollowerProcessList(ack *wire.MsgAck) error {
 	// simply validation
-	if ack.Type != wire.END_MINUTE_10 || mp.ackpool[len(mp.ackpool)-1] != ack {
+	if ack.Type != wire.END_MINUTE_10 { //|| mp.ackpool[len(mp.ackpool)-1] != ack {
 		return fmt.Errorf("the last ack has to be END_MINUTE_10")
 	}
-	fmt.Println("acpool.len=", len(mp.ackpool))
+	procLog.Info("acpool.len=", len(mp.ackpool)) //, spew.Sdump(mp.ackpool))
 	for i := 0; i < len(mp.ackpool); i++ {
 		if mp.ackpool[i] == nil {
 			// missing an ACK here
 			// todo: request for this ack, panic for now
 			//panic(fmt.Sprintf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack)))
-			fmt.Printf("Missing an Ack in ackpool at index=%d, for ack=%s", i, spew.Sdump(ack))
+			//procLog.Infof("Missing an Ack in ackpool at index=%d\n", i)
 			continue
 		}
 		var msg wire.Message
