@@ -2358,7 +2358,7 @@ func (p *peer) GetNodeID() string {
 func (p *peer) handleNextLeaderMsg(msg *wire.MsgNextLeader) {
 	fmt.Printf("handleNextLeaderMsg: %s\n", spew.Sdump(msg))
 	if !msg.Sig.Pub.Verify([]byte(msg.CurrLeaderID+msg.NextLeaderID), msg.Sig.Sig) {
-		fmt.Println("signature verify FAILED.")
+		fmt.Println("handleNextLeaderMsg: signature verify FAILED.")
 		return
 	}
 	if !(p.server.leaderPeer != nil && p.server.leaderPeer.nodeID == msg.CurrLeaderID) {

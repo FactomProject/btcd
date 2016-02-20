@@ -275,6 +275,9 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 			if err != nil {
 				return err
 			}
+			if ecchain.NextBlockHeight <= ecBlkMsg.ECBlock.Header.EBHeight {
+				ecchain.NextBlockHeight = ecBlkMsg.ECBlock.Header.EBHeight + 1
+			}
 			// needs to be improved??
 			initializeECreditMap(ecBlkMsg.ECBlock)
 			// for debugging
@@ -284,6 +287,9 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 			err := db.ProcessABlockBatch(aBlkMsg.ABlk)
 			if err != nil {
 				return err
+			}
+			if achain.NextBlockHeight <= aBlkMsg.ABlk.Header.DBHeight {
+				achain.NextBlockHeight = aBlkMsg.ABlk.Header.DBHeight + 1
 			}
 			// for debugging
 			exportABlock(aBlkMsg.ABlk)
@@ -298,6 +304,9 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 			FactoshisPerCredit = fBlkMsg.SC.GetExchRate()
 			if err != nil {
 				return err
+			}
+			if fchain.NextBlockHeight <= fBlkMsg.SC.GetDBHeight() {
+				fchain.NextBlockHeight = fBlkMsg.SC.GetDBHeight() + 1
 			}
 
 			// for debugging
@@ -351,6 +360,9 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 	// update the global network dirblock chain height
 	if dchain.NextDBHeight <= b.Header.DBHeight {
 		dchain.NextDBHeight = b.Header.DBHeight + 1
+	}
+	if plMgr.NextDBlockHeight <= b.Header.DBHeight {
+		plMgr.NextDBlockHeight = b.Header.DBHeight + 1
 	}
 
 	// for debugging

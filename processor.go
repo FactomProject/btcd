@@ -1122,8 +1122,8 @@ func buildGenesisBlocks() error {
 // build blocks from all process lists
 func buildBlocks() error {
 	// build the Genesis blocks if the current height is 0
-	fmt.Printf("buildBlocks(): dchain.NextDBHeight=%d, achain.NextDBHeight=%d, fchain.NextDBHeight=%d\n",
-		dchain.NextDBHeight, achain.NextBlockHeight, fchain.NextBlockHeight)
+	fmt.Printf("buildBlocks(): dchain.NextDBHeight=%d, achain.NextDBHeight=%d, fchain.NextDBHeight=%d, ecchain.NextDBHeight=%d\\n",
+		dchain.NextDBHeight, achain.NextBlockHeight, fchain.NextBlockHeight, ecchain.NextBlockHeight)
 
 	// Allocate the first three dbentries for Admin block, ECBlock and Factoid block
 	dchain.AddDBEntry(&common.DBEntry{}) // AdminBlock
@@ -1171,10 +1171,34 @@ func buildBlocks() error {
 	// re-initialize the process lit manager
 	initProcessListMgr()
 
+	// for leader / follower regime change
+	fmt.Printf("buildBlocks(): It's a leader=%t or leaderElected=%t, dbheight=%d, dchain.NextDBHeight=%d\n",
+		localServer.IsLeader(), localServer.isLeaderElected, newDBlock.Header.DBHeight, dchain.NextDBHeight)
+
+	if localServer.IsLeader() && !localServer.isSingleServerMode() {
+		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
+			fmt.Println("buildBlocks(): Leader turn OFF BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
+		} else {
+			fmt.Println("buildBlocks(): Leader RESTARTs BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
+		}
+	}
+	if localServer.isLeaderElected && !localServer.isSingleServerMode() {
+		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
+			fmt.Println("buildBlocks(): Leader-Elected turn ON BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
+		} else {
+			fmt.Println("buildBlocks(): Leader-Elected KEEPs OFF BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
+		}
+	}
+
+	if localServer.IsLeader() || localServer.isLeaderElected {
+		localServer.latestDBHeight <- newDBlock.Header.DBHeight
+	}
+
 	// should have a long-lasting block timer ???
-	// Initialize timer for the new dblock, only for leader
-	//if nodeMode == common.SERVER_NODE && !blockSyncing {
-	if localServer.IsLeader() {
+	// Initialize timer for the new dblock, only for leader before regime change.
+	if localServer.isSingleServerMode() ||
+		localServer.IsLeader() && dchain.NextDBHeight-1 != localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term ||
+		localServer.isLeaderElected && dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,
 			inMsgQueue:       inMsgQueue,
@@ -1241,7 +1265,7 @@ func newEntryCreditBlock(chain *common.ECChain) *common.ECBlock {
 	block := chain.NextBlock
 
 	if chain.NextBlockHeight != dchain.NextDBHeight {
-		procLog.Info("Entry Credit Block height does not match Directory Block height:" + string(dchain.NextDBHeight))
+		procLog.Info("Entry Credit Block height does not match Directory Block height: ", dchain.NextDBHeight)
 	}
 
 	block.BuildHeader()
@@ -1398,16 +1422,16 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 
 	db.ProcessECBlockBatch(ecblock)
 	exportECBlock(ecblock)
-	procLog.Infof("Save EntryCreditBlock: block" + strconv.FormatUint(uint64(ecblock.Header.EBHeight), 10))
+	procLog.Infof("Save EntryCreditBlock: block " + strconv.FormatUint(uint64(ecblock.Header.EBHeight), 10))
 
 	db.ProcessDBlockBatch(dblock)
 	db.InsertDirBlockInfo(common.NewDirBlockInfoFromDBlock(dblock))
-	procLog.Info("Save DirectoryBlock: block" + strconv.FormatUint(uint64(dblock.Header.DBHeight), 10))
+	procLog.Info("Save DirectoryBlock: block " + strconv.FormatUint(uint64(dblock.Header.DBHeight), 10))
 
 	for _, eblock := range eblocks {
 		db.ProcessEBlockBatch(eblock)
 		exportEBlock(eblock)
-		procLog.Infof("Save EntryBlock: block" + strconv.FormatUint(uint64(eblock.Header.EBSequence), 10))
+		procLog.Infof("Save EntryBlock: block " + strconv.FormatUint(uint64(eblock.Header.EBSequence), 10))
 	}
 
 	binary, _ := dblock.MarshalBinary()
@@ -1419,12 +1443,6 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 
 	placeAnchor(dblock)
 	fMemPool.resetDirBlockSigPool()
-
-	// for leader / follower regime change
-	procLog.Infof("It's a leader=%t or leaderElected=%t", localServer.IsLeader(), localServer.isLeaderElected)
-	if localServer.IsLeader() || localServer.isLeaderElected {
-		localServer.latestDBHeight <- dblock.Header.DBHeight
-	}
 	return nil
 }
 

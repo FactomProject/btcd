@@ -5,6 +5,7 @@
 package btcd
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/FactomProject/btcd/wire"
@@ -24,7 +25,7 @@ func (bt *BlockTimer) StartBlockTimer() {
 	/*	t := time.Now()
 		time.Sleep(time.Duration((60 - t.Second()) * 1000000000))
 	*/
-	procLog.Info("BlockTimer.StartBlockTimer. nextDBlockHeight=", bt.nextDBlockHeight)
+	fmt.Println("BlockTimer.StartBlockTimer. nextDBlockHeight=", bt.nextDBlockHeight)
 	if directoryBlockInSeconds < 600 {
 		sleeptime := directoryBlockInSeconds / 10
 
