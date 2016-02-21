@@ -110,18 +110,18 @@ func InitProcessor(ldb database.Db) {
 
 	// init Directory Block Chain
 	initDChain()
-	procLog.Info("Loaded ", dchain.NextDBHeight, " Directory blocks for chain: "+dchain.ChainID.String())
+	fmt.Println("Loaded ", dchain.NextDBHeight, " Directory blocks for chain: "+dchain.ChainID.String())
 
 	// init Entry Credit Chain
 	initECChain()
-	procLog.Info("Loaded ", ecchain.NextBlockHeight, " Entry Credit blocks for chain: "+ecchain.ChainID.String())
+	fmt.Println("Loaded ", ecchain.NextBlockHeight, " Entry Credit blocks for chain: "+ecchain.ChainID.String())
 
 	// init Admin Chain
 	initAChain()
-	procLog.Info("Loaded ", achain.NextBlockHeight, " Admin blocks for chain: "+achain.ChainID.String())
+	fmt.Println("Loaded ", achain.NextBlockHeight, " Admin blocks for chain: "+achain.ChainID.String())
 
 	initFctChain()
-	procLog.Info("Loaded ", fchain.NextBlockHeight, " factoid blocks for chain: "+fchain.ChainID.String())
+	fmt.Println("Loaded ", fchain.NextBlockHeight, " factoid blocks for chain: "+fchain.ChainID.String())
 
 	//Init anchor for server
 	if nodeMode == common.SERVER_NODE {
@@ -136,7 +136,7 @@ func InitProcessor(ldb database.Db) {
 	for _, chain := range chainIDMap {
 		initEChainFromDB(chain)
 
-		procLog.Info("Loaded ", chain.NextBlockHeight, " blocks for chain: "+chain.ChainID.String())
+		fmt.Println("Loaded ", chain.NextBlockHeight, " blocks for chain: "+chain.ChainID.String())
 	}
 
 	// Validate all dir blocks
@@ -154,11 +154,11 @@ func InitProcessor(ldb database.Db) {
 // StartProcessor is started from factomd
 func StartProcessor() {
 	//initProcessor()
-	procLog.Info("StartProcessor: blockSyncing=", blockSyncing)
+	fmt.Println("StartProcessor: blockSyncing=", blockSyncing)
 	if dchain.NextDBHeight == 0 && localServer.IsLeader() { //nodeMode == common.SERVER_NODE && !blockSyncing {
 		buildGenesisBlocks()
 	}
-	procLog.Debug("**** after creating genesis block: dchain.NextDBHeight=", dchain.NextDBHeight)
+	procLog.Debug("after creating genesis block: dchain.NextDBHeight=", dchain.NextDBHeight)
 
 	// Initialize timer for the open dblock before processing messages
 	//if nodeMode == common.SERVER_NODE && !blockSyncing {
@@ -172,7 +172,7 @@ func StartProcessor() {
 		//if !localServer.IsLeader() {
 		// process the blocks and entries downloaded from peers
 		// this is needed for clients and followers when sync up
-		procLog.Info("StartProcessor: validateAndStoreBlocks")
+		fmt.Println("StartProcessor: validateAndStoreBlocks")
 		go validateAndStoreBlocks(fMemPool, db, dchain)
 	}
 
@@ -351,24 +351,23 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 		fMemPool.addDirBlockSig(dbs)
 
 	case wire.CmdInt_EOM:
-		// only the leader need to deal with this and
+		// this is only for leader. as followers have no blocktimer
 		// followers EOM will be driven by Ack of this EOM.
 		fmt.Printf("in case.CmdInt_EOM: localServer.IsLeader=%v\n", localServer.IsLeader())
+		msgEom, _ := msg.(*wire.MsgInt_EOM)
+		var singleServerMode = localServer.isSingleServerMode()
+		fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
+			", singleServerMode=", singleServerMode)
 
 		// todo: need to sync up server & peer, and make sure it connects to
 		// at least one peer if available before server getting here.
 		// this is mostly a problem of 60 seconds block rather than normally 10 minute block
 		// For now, single server mode has to have InitStart = false in config
 		// ???
-		//if localServer.IsLeader() || singleServerMode {
-		if !localServer.IsLeader() {
-			return nil
-		}
-		// this is only for leader. as followers have no blocktimer
-		msgEom, _ := msg.(*wire.MsgInt_EOM)
-		var singleServerMode = localServer.isSingleServerMode()
-		fmt.Println("number of federate servers: ", localServer.FederateServerCount(),
-			", singleServerMode=", singleServerMode)
+		//if !localServer.IsLeader() {
+		//return nil
+		//}
+
 		// to simplify this, for leader & followers, use the next wire.END_MINUTE_1
 		// to trigger signature comparison of last round.
 		// todo: when to start? can NOT do this for the first EOM_1 ???
@@ -397,7 +396,7 @@ func serveMsgRequest(msg wire.FtmInternalMsg) error {
 			0)
 
 	case wire.CmdDirBlock:
-		procLog.Infof("wire.CmdDirBlock: blockSyncing: %t", blockSyncing)
+		fmt.Printf("wire.CmdDirBlock: blockSyncing: %t\n", blockSyncing)
 		if nodeMode == common.SERVER_NODE && !blockSyncing {
 			break
 		}
@@ -544,7 +543,7 @@ func processLeaderEOM(msgEom *wire.MsgInt_EOM) error {
 	if ack.ChainID == nil {
 		ack.ChainID = dchain.ChainID
 	}
-	procLog.Infof("processLeaderEOM: leader sending ack=%s", spew.Sdump(ack))
+	fmt.Printf("processLeaderEOM: leader sending ack=%s\n", spew.Sdump(ack))
 	outMsgQueue <- ack
 
 	//procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
@@ -567,9 +566,9 @@ func processDirBlockSig() error {
 		return nil
 	}
 	totalServerNum := localServer.FederateServerCount()
-	fmt.Printf("By EOM_1, there're %d dirblock signatures arrived out of %d federate servers.\n",
+	fmt.Printf("processDirBlockSig(): By EOM_1, there're %d dirblock signatures arrived out of %d federate servers.\n",
 		len(dbsigs), totalServerNum)
-	fmt.Println("DirBlockSigPool: ", spew.Sdump(dbsigs))
+	fmt.Println("processDirBlockSig(): DirBlockSigPool: ", spew.Sdump(dbsigs))
 
 	dgsMap := make(map[string][]*wire.MsgDirBlockSig)
 	for _, v := range dbsigs {
@@ -578,8 +577,9 @@ func processDirBlockSig() error {
 		//continue
 		//}
 		if v.DBHeight != dchain.NextDBHeight-1 {
+			// need to remove this oen
 			fmt.Println("filter out later-coming last block's sig: ", spew.Sdump(v))
-			return nil
+			continue
 		}
 		key := v.DirBlockHash.String()
 		val := dgsMap[key]
@@ -648,7 +648,7 @@ func processDirBlockSig() error {
 // processAck validates the ack and adds it to processlist
 // this is only for post-syncup followers need to deal with Ack
 func processAck(msg *wire.MsgAck) error {
-	procLog.Infof("processAck: %s", spew.Sdump(msg))
+	fmt.Printf("processAck: %s\n", spew.Sdump(msg))
 	// Validate the signiture
 	bytes, err := msg.GetBinaryForSignature()
 	if err != nil {
@@ -743,7 +743,7 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 		//if nodeMode == common.SERVER_NODE {
 		if localServer.IsLeader() || localServer.isSingleServerMode() {
 			if plMgr.IsMyPListExceedingLimit() {
-				procLog.Info("Exceeding MyProcessList size limit!")
+				fmt.Println("Exceeding MyProcessList size limit!")
 				return fMemPool.addOrphanMsg(msg, h)
 			}
 
@@ -751,7 +751,7 @@ func processRevealEntry(msg *wire.MsgRevealEntry) error {
 			if err != nil {
 				return err
 			}
-			procLog.Infof("ACK_REVEAL_ENTRY: %s", spew.Sdump(ack))
+			fmt.Printf("ACK_REVEAL_ENTRY: %s\n", spew.Sdump(ack))
 			outMsgQueue <- ack
 			//???
 			delete(commitEntryMap, e.Hash().String())
@@ -844,7 +844,7 @@ func processCommitEntry(msg *wire.MsgCommitEntry) error {
 
 		h, _ := msg.Sha()
 		if plMgr.IsMyPListExceedingLimit() {
-			procLog.Info("Exceeding MyProcessList size limit!")
+			fmt.Println("Exceeding MyProcessList size limit!")
 			return fMemPool.addOrphanMsg(msg, &h)
 		}
 
@@ -852,7 +852,7 @@ func processCommitEntry(msg *wire.MsgCommitEntry) error {
 		if err != nil {
 			return err
 		}
-		procLog.Infof("ACK_COMMIT_ENTRY: %s", spew.Sdump(ack))
+		fmt.Printf("ACK_COMMIT_ENTRY: %s\n", spew.Sdump(ack))
 		outMsgQueue <- ack
 	} else {
 		//as follower
@@ -897,7 +897,7 @@ func processCommitChain(msg *wire.MsgCommitChain) error {
 		h, _ := msg.Sha()
 
 		if plMgr.IsMyPListExceedingLimit() {
-			procLog.Info("Exceeding MyProcessList size limit!")
+			fmt.Println("Exceeding MyProcessList size limit!")
 			return fMemPool.addOrphanMsg(msg, &h)
 		}
 
@@ -905,7 +905,7 @@ func processCommitChain(msg *wire.MsgCommitChain) error {
 		if err != nil {
 			return err
 		}
-		procLog.Infof("ACK_COMMIT_CHAIN: %s", spew.Sdump(ack))
+		fmt.Printf("ACK_COMMIT_CHAIN: %s\n", spew.Sdump(ack))
 		outMsgQueue <- ack
 	} else {
 		//as follower
@@ -930,7 +930,7 @@ func processBuyEntryCredit(msg *wire.MsgFactoidTX) error {
 
 	h, _ := msg.Sha()
 	if plMgr.IsMyPListExceedingLimit() {
-		procLog.Info("Exceeding MyProcessList size limit!")
+		fmt.Println("Exceeding MyProcessList size limit!")
 		return fMemPool.addOrphanMsg(msg, &h)
 	}
 
@@ -949,7 +949,7 @@ func processFromOrphanPool() error {
 			msgCommitChain, _ := msg.(*wire.MsgCommitChain)
 			err := processCommitChain(msgCommitChain)
 			if err != nil {
-				procLog.Info("Error in processing orphan msgCommitChain:" + err.Error())
+				fmt.Println("Error in processing orphan msgCommitChain:" + err.Error())
 				continue
 			}
 			delete(fMemPool.orphans, k)
@@ -958,7 +958,7 @@ func processFromOrphanPool() error {
 			msgCommitEntry, _ := msg.(*wire.MsgCommitEntry)
 			err := processCommitEntry(msgCommitEntry)
 			if err != nil {
-				procLog.Info("Error in processing orphan msgCommitEntry:" + err.Error())
+				fmt.Println("Error in processing orphan msgCommitEntry:" + err.Error())
 				continue
 			}
 			delete(fMemPool.orphans, k)
@@ -967,7 +967,7 @@ func processFromOrphanPool() error {
 			msgRevealEntry, _ := msg.(*wire.MsgRevealEntry)
 			err := processRevealEntry(msgRevealEntry)
 			if err != nil {
-				procLog.Info("Error in processing orphan msgRevealEntry:" + err.Error())
+				fmt.Println("Error in processing orphan msgRevealEntry:" + err.Error())
 				continue
 			}
 			delete(fMemPool.orphans, k)
@@ -1277,7 +1277,7 @@ func newEntryCreditBlock(chain *common.ECChain) *common.ECBlock {
 	}
 
 	if chain.NextBlockHeight != dchain.NextDBHeight {
-		procLog.Info("Entry Credit Block height does not match Directory Block height: ", dchain.NextDBHeight)
+		fmt.Println("Entry Credit Block height does not match Directory Block height: ", dchain.NextDBHeight)
 	}
 
 	block.BuildHeader()
@@ -1393,7 +1393,7 @@ func newFactoidBlock(chain *common.FctChain) block.IFBlock {
 
 // Seals the current open block, store it in db and create the next open block
 func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
-	fmt.Printf("**** enter newDirectoryBlock: chain.NextBlock.Height=%d, chain.NextDBHeight=%d\n",
+	fmt.Printf("enter newDirectoryBlock: chain.NextBlock.Height=%d, chain.NextDBHeight=%d\n",
 		chain.NextBlock.Header.DBHeight, chain.NextDBHeight)
 	// acquire the last block
 	block := chain.NextBlock
@@ -1422,7 +1422,7 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	chain.NextBlock, _ = common.CreateDBlock(chain, block, 10)
 	chain.BlockMutex.Unlock()
 	fmt.Printf("newDirectoryBlock: new dbBlock=%s\n", spew.Sdump(block.Header))
-	fmt.Println("**** after creating new dir block, dchain.NextDBHeight=", chain.NextDBHeight)
+	fmt.Println("after creating new dir block, dchain.NextDBHeight=", chain.NextDBHeight)
 
 	newDBlock = block
 	block.DBHash, _ = common.CreateHash(block)
@@ -1442,24 +1442,24 @@ func saveBlocks(dblock *common.DirectoryBlock, ablock *common.AdminBlock,
 	fmt.Println("saveBlocks: height=", dblock.Header.DBHeight)
 	db.ProcessFBlockBatch(fblock)
 	exportFctBlock(fblock)
-	procLog.Infof("Save Factoid Block: block " + strconv.FormatUint(uint64(fblock.GetDBHeight()), 10))
+	fmt.Println("Save Factoid Block: block " + strconv.FormatUint(uint64(fblock.GetDBHeight()), 10))
 
 	db.ProcessABlockBatch(ablock)
 	exportABlock(ablock)
-	procLog.Infof("Save Admin Block: block " + strconv.FormatUint(uint64(ablock.Header.DBHeight), 10))
+	fmt.Println("Save Admin Block: block " + strconv.FormatUint(uint64(ablock.Header.DBHeight), 10))
 
 	db.ProcessECBlockBatch(ecblock)
 	exportECBlock(ecblock)
-	procLog.Infof("Save EntryCreditBlock: block " + strconv.FormatUint(uint64(ecblock.Header.EBHeight), 10))
+	fmt.Println("Save EntryCreditBlock: block " + strconv.FormatUint(uint64(ecblock.Header.EBHeight), 10))
 
 	db.ProcessDBlockBatch(dblock)
 	db.InsertDirBlockInfo(common.NewDirBlockInfoFromDBlock(dblock))
-	procLog.Info("Save DirectoryBlock: block " + strconv.FormatUint(uint64(dblock.Header.DBHeight), 10))
+	fmt.Println("Save DirectoryBlock: block " + strconv.FormatUint(uint64(dblock.Header.DBHeight), 10))
 
 	for _, eblock := range eblocks {
 		db.ProcessEBlockBatch(eblock)
 		exportEBlock(eblock)
-		procLog.Infof("Save EntryBlock: block " + strconv.FormatUint(uint64(eblock.Header.EBSequence), 10))
+		fmt.Println("Save EntryBlock: block " + strconv.FormatUint(uint64(eblock.Header.EBSequence), 10))
 	}
 
 	binary, _ := dblock.MarshalBinary()
