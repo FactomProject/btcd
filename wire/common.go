@@ -116,10 +116,12 @@ func readElement(r io.Reader, element interface{}) error {
 		return nil
 
 	case *common.Hash:
-		_, err := io.ReadFull(r, e.Bytes())
+		var data [32]byte
+		_, err := io.ReadFull(r, data[:])
 		if err != nil {
 			return err
 		}
+		*e = common.NewHashFromByte(data)
 		return nil
 
 	case *ServiceFlag:

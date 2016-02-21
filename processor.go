@@ -577,11 +577,15 @@ func processDirBlockSig() error {
 		//fmt.Println("could not verify sig. dir block hash: ", v.DirBlockHash)
 		//continue
 		//}
+		if v.DBHeight != dchain.NextDBHeight-1 {
+			fmt.Println("filter out later-coming last block's sig: ", spew.Sdump(v))
+			return nil
+		}
 		key := v.DirBlockHash.String()
 		val := dgsMap[key]
 		fmt.Printf("key0=%s, dir block sig=%s\n", key, spew.Sdump(val))
 		if val == nil {
-			fmt.Println("sig is nil.")
+			//fmt.Println("sig is nil.")
 			val = make([]*wire.MsgDirBlockSig, 0, 32)
 			val = append(val, v)
 			dgsMap[key] = val
@@ -686,7 +690,7 @@ func processAck(msg *wire.MsgAck) error {
 	if msg.Type == wire.END_MINUTE_10 { //}&& missingMsg == nil && len(missingAcks) == 0 {
 		fmt.Println("assembleFollowerProcessList")
 		fMemPool.assembleFollowerProcessList(msg)
-		procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
+		//procLog.Infof("current ProcessList: %s", spew.Sdump(plMgr.MyProcessList))
 	}
 	// for firstBlockHeight, ususally there's some msg or ack missing
 	// let's bypass the first one to give the follower time to round up.
@@ -1122,7 +1126,7 @@ func buildGenesisBlocks() error {
 // build blocks from all process lists
 func buildBlocks() error {
 	// build the Genesis blocks if the current height is 0
-	fmt.Printf("buildBlocks(): dchain.NextDBHeight=%d, achain.NextDBHeight=%d, fchain.NextDBHeight=%d, ecchain.NextDBHeight=%d\\n",
+	fmt.Printf("buildBlocks(): dchain.NextDBHeight=%d, achain.NextDBHeight=%d, fchain.NextDBHeight=%d, ecchain.NextDBHeight=%d\n",
 		dchain.NextDBHeight, achain.NextBlockHeight, fchain.NextBlockHeight, ecchain.NextBlockHeight)
 
 	// Allocate the first three dbentries for Admin block, ECBlock and Factoid block
@@ -1172,8 +1176,8 @@ func buildBlocks() error {
 	initProcessListMgr()
 
 	// for leader / follower regime change
-	fmt.Printf("buildBlocks(): It's a leader=%t or leaderElected=%t, dbheight=%d, dchain.NextDBHeight=%d\n",
-		localServer.IsLeader(), localServer.isLeaderElected, newDBlock.Header.DBHeight, dchain.NextDBHeight)
+	fmt.Printf("buildBlocks(): It's a leader=%t or leaderElected=%t, SingleServerMode=%t, dbheight=%d, dchain.NextDBHeight=%d\n",
+		localServer.IsLeader(), localServer.isLeaderElected, localServer.isSingleServerMode(), newDBlock.Header.DBHeight, dchain.NextDBHeight)
 
 	if localServer.IsLeader() && !localServer.isSingleServerMode() {
 		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
@@ -1183,27 +1187,29 @@ func buildBlocks() error {
 		}
 	}
 	if localServer.isLeaderElected && !localServer.isSingleServerMode() {
-		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
+		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight {
 			fmt.Println("buildBlocks(): Leader-Elected turn ON BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
 		} else {
 			fmt.Println("buildBlocks(): Leader-Elected KEEPs OFF BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
 		}
 	}
 
-	if localServer.IsLeader() || localServer.isLeaderElected {
-		localServer.latestDBHeight <- newDBlock.Header.DBHeight
-	}
-
 	// should have a long-lasting block timer ???
 	// Initialize timer for the new dblock, only for leader before regime change.
 	if localServer.isSingleServerMode() ||
 		localServer.IsLeader() && dchain.NextDBHeight-1 != localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term ||
-		localServer.isLeaderElected && dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
+		localServer.isLeaderElected && dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight { //+localServer.myLeaderPolicy.Term {
+		fmt.Println("@@@@ start BlockTimer ")
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,
 			inMsgQueue:       inMsgQueue,
 		}
 		go timer.StartBlockTimer()
+	}
+
+	if localServer.IsLeader() || localServer.isLeaderElected {
+		fmt.Println("buildBlocks(): send it to channel: localServer.latestDBHeight <- ", newDBlock.Header.DBHeight)
+		localServer.latestDBHeight <- newDBlock.Header.DBHeight
 	}
 	return nil
 }
@@ -1211,6 +1217,7 @@ func buildBlocks() error {
 // build blocks from a process lists
 func buildFromProcessList(pl *consensus.ProcessList) error {
 	for _, pli := range pl.GetPLItems() {
+		//fmt.Println("buildFromProcessList: pli=", spew.Sdump(pli))
 		if pli == nil {
 			continue
 		}
@@ -1247,6 +1254,7 @@ func newEntryBlock(chain *common.EChain) *common.EBlock {
 	// Create the block and add a new block for new coming entries
 	block.Header.EBHeight = dchain.NextDBHeight
 	block.Header.EntryCount = uint32(len(block.Body.EBEntries))
+	fmt.Println("newEntryBlock: block.Header.EBHeight = ", block.Header.EBHeight)
 
 	chain.NextBlockHeight++
 	var err error
@@ -1263,12 +1271,17 @@ func newEntryCreditBlock(chain *common.ECChain) *common.ECBlock {
 
 	// acquire the last block
 	block := chain.NextBlock
+	if block.Header.EBHeight != chain.NextBlockHeight {
+		// this is the first block after block sync up
+		block.Header.EBHeight = chain.NextBlockHeight
+	}
 
 	if chain.NextBlockHeight != dchain.NextDBHeight {
 		procLog.Info("Entry Credit Block height does not match Directory Block height: ", dchain.NextDBHeight)
 	}
 
 	block.BuildHeader()
+	fmt.Println("newEntryCreditBlock: block.Header.EBHeight = ", block.Header.EBHeight)
 
 	// Create the block and add a new block for new coming entries
 	chain.BlockMutex.Lock()
@@ -1290,6 +1303,10 @@ func newAdminBlock(chain *common.AdminChain) *common.AdminBlock {
 
 	// acquire the last block
 	block := chain.NextBlock
+	if block.Header.DBHeight != chain.NextBlockHeight {
+		// this is the first block after block sync up
+		block.Header.DBHeight = chain.NextBlockHeight
+	}
 
 	if chain.NextBlockHeight != dchain.NextDBHeight {
 		fmt.Printf("Admin Block height does not match Directory Block height: ablock height=%d, dblock height=%d",
@@ -1307,6 +1324,7 @@ func newAdminBlock(chain *common.AdminChain) *common.AdminBlock {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("newAdminBlock: block.Header.EBHeight = ", block.Header.DBHeight)
 
 	// Create the block and add a new block for new coming entries
 	chain.BlockMutex.Lock()
@@ -1352,6 +1370,11 @@ func newFactoidBlock(chain *common.FctChain) block.IFBlock {
 
 	// acquire the last block
 	currentBlock := chain.NextBlock
+	fmt.Println("newFactoidBlock: block.Header.EBHeight = ", currentBlock.GetDBHeight())
+	if currentBlock.GetDBHeight() != chain.NextBlockHeight {
+		// this is the first block after block sync up
+		currentBlock.SetDBHeight(chain.NextBlockHeight)
+	}
 
 	if chain.NextBlockHeight != dchain.NextDBHeight {
 		fmt.Println("Factoid Block height does not match Directory Block height:" + strconv.Itoa(int(dchain.NextDBHeight)))
@@ -1370,9 +1393,14 @@ func newFactoidBlock(chain *common.FctChain) block.IFBlock {
 
 // Seals the current open block, store it in db and create the next open block
 func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
-	procLog.Debug("**** enter newDirectoryBlock: chain.NextDBHeight=", chain.NextDBHeight)
+	fmt.Printf("**** enter newDirectoryBlock: chain.NextBlock.Height=%d, chain.NextDBHeight=%d\n",
+		chain.NextBlock.Header.DBHeight, chain.NextDBHeight)
 	// acquire the last block
 	block := chain.NextBlock
+	if block.Header.DBHeight != chain.NextDBHeight {
+		// this is the first block after block sync up
+		block.Header.DBHeight = chain.NextDBHeight
+	}
 
 	if devNet {
 		block.Header.NetworkID = common.NETWORK_ID_TEST
@@ -1393,8 +1421,8 @@ func newDirectoryBlock(chain *common.DChain) *common.DirectoryBlock {
 	chain.NextDBHeight++
 	chain.NextBlock, _ = common.CreateDBlock(chain, block, 10)
 	chain.BlockMutex.Unlock()
-	procLog.Infof("newDirectoryBlock: new dbBlock=%s", spew.Sdump(block.Header))
-	procLog.Debug("**** after creating new dir block, dchain.NextDBHeight=", chain.NextDBHeight)
+	fmt.Printf("newDirectoryBlock: new dbBlock=%s\n", spew.Sdump(block.Header))
+	fmt.Println("**** after creating new dir block, dchain.NextDBHeight=", chain.NextDBHeight)
 
 	newDBlock = block
 	block.DBHash, _ = common.CreateHash(block)
@@ -1493,7 +1521,7 @@ func SignDirectoryBlock(newdb *common.DirectoryBlock) error {
 // Place an anchor into btc
 func placeAnchor(dblock *common.DirectoryBlock) error {
 	if localServer.isLeader || localServer.isSingleServerMode() {
-		fmt.Println("placeAnchor: height=", dblock.Header.DBHeight)
+		fmt.Printf("placeAnchor: height=%d, leader=%s\n", dblock.Header.DBHeight, localServer.nodeID)
 		anchor.UpdateDirBlockInfoMap(common.NewDirBlockInfoFromDBlock(dblock))
 		go anchor.SendRawTransactionToBTC(dblock.KeyMR, dblock.Header.DBHeight)
 	}

@@ -48,6 +48,7 @@ func (mp *ftmMemPool) LenDirBlockSig() int {
 }
 
 func (mp *ftmMemPool) resetDirBlockSigPool() {
+	fmt.Println("resetDirBlockSigPool")
 	mp.dirBlockSigs = make([]*wire.MsgDirBlockSig, 0, 32)
 }
 
@@ -115,7 +116,8 @@ func (mp *ftmMemPool) assembleFollowerProcessList(ack *wire.MsgAck) error {
 			break
 		}
 	}
-	fmt.Println("assembleFollowerProcessList: target height=", height)
+	plMgr.NextDBlockHeight = height
+	fmt.Println("assembleFollowerProcessList: (plMgr.NextDBlockHeight) target height=", height)
 	for i := 0; i < 10; i++ {
 		msgEom := &wire.MsgInt_EOM{
 			EOM_Type:         wire.END_MINUTE_1 + byte(i),

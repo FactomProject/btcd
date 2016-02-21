@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -363,6 +364,7 @@ func storeBlocksFromMemPool(b *common.DirectoryBlock, fMemPool *ftmMemPool, db d
 	}
 	if plMgr.NextDBlockHeight <= b.Header.DBHeight {
 		plMgr.NextDBlockHeight = b.Header.DBHeight + 1
+		fmt.Println("syncup: update plMgr.NextDBlockHeight: ", plMgr.NextDBlockHeight)
 	}
 
 	// for debugging

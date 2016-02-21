@@ -1033,9 +1033,6 @@ func (s *server) Start() {
 	s.wg.Add(1)
 	go s.peerHandler()
 
-	s.wg.Add(1)
-	go s.nextLeaderHandler()
-
 	if s.nat != nil {
 		s.wg.Add(1)
 		go s.upnpUpdateThread()
@@ -1393,6 +1390,10 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 	s.initServerKeys()
 
 	_, newestHeight, _ := db.FetchBlockHeightCache()
+	//dirty fix for newestHeight when a new level db is created
+	if newestHeight > 429496729 {
+		newestHeight = 0
+	}
 	h := uint32(newestHeight)
 	srvrLog.Info("newestHeight=", h)
 	if common.SERVER_NODE == s.nodeType {
@@ -1510,9 +1511,10 @@ func (s *server) nextLeaderHandler() {
 	for {
 		select {
 		case h := <-s.latestDBHeight:
+			fmt.Println("nextLeaderHandler(): s.latestDBHeight=", h)
 			if s.isSingleServerMode() {
-				fmt.Println("nextLeaderHandler(): is SingleServerMode. update leaderPolicy: new startingDBHeight=", h)
-				s.myLeaderPolicy.StartDBHeight = h
+				s.myLeaderPolicy.StartDBHeight = h + 1 // h is the height of newly created dir block
+				fmt.Println("nextLeaderHandler(): is SingleServerMode. update leaderPolicy: new startingDBHeight=", s.myLeaderPolicy.StartDBHeight)
 				return
 			}
 			s.handleNextLeader(h)
