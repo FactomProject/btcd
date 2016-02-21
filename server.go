@@ -1515,7 +1515,7 @@ func (s *server) nextLeaderHandler() {
 			if s.isSingleServerMode() {
 				s.myLeaderPolicy.StartDBHeight = h + 1 // h is the height of newly created dir block
 				fmt.Println("nextLeaderHandler(): is SingleServerMode. update leaderPolicy: new startingDBHeight=", s.myLeaderPolicy.StartDBHeight)
-				return
+				//return
 			}
 			s.handleNextLeader(h)
 		default:
