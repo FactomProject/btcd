@@ -1180,14 +1180,14 @@ func buildBlocks() error {
 		localServer.IsLeader(), localServer.isLeaderElected, localServer.isSingleServerMode(), newDBlock.Header.DBHeight, dchain.NextDBHeight)
 
 	if localServer.IsLeader() && !localServer.isSingleServerMode() {
-		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term {
+		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term-1 {
 			fmt.Println("buildBlocks(): Leader turn OFF BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
 		} else {
 			fmt.Println("buildBlocks(): Leader RESTARTs BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
 		}
 	}
 	if localServer.isLeaderElected && !localServer.isSingleServerMode() {
-		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight {
+		if dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight-1 {
 			fmt.Println("buildBlocks(): Leader-Elected turn ON BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
 		} else {
 			fmt.Println("buildBlocks(): Leader-Elected KEEPs OFF BlockTimer. newDBlock.dbheight=", newDBlock.Header.DBHeight, ", dchain.NextDBHeight=", dchain.NextDBHeight)
@@ -1197,8 +1197,8 @@ func buildBlocks() error {
 	// should have a long-lasting block timer ???
 	// Initialize timer for the new dblock, only for leader before regime change.
 	if localServer.isSingleServerMode() ||
-		localServer.IsLeader() && dchain.NextDBHeight-1 != localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term ||
-		localServer.isLeaderElected && dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight { //+localServer.myLeaderPolicy.Term {
+		localServer.IsLeader() && dchain.NextDBHeight-1 != localServer.myLeaderPolicy.StartDBHeight+localServer.myLeaderPolicy.Term-1 ||
+		localServer.isLeaderElected && dchain.NextDBHeight-1 == localServer.myLeaderPolicy.StartDBHeight-1 {
 		fmt.Println("@@@@ start BlockTimer ")
 		timer := &BlockTimer{
 			nextDBlockHeight: dchain.NextDBHeight,

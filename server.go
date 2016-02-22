@@ -1515,7 +1515,6 @@ func (s *server) nextLeaderHandler() {
 			if s.isSingleServerMode() {
 				s.myLeaderPolicy.StartDBHeight = h + 1 // h is the height of newly created dir block
 				fmt.Println("nextLeaderHandler(): is SingleServerMode. update leaderPolicy: new startingDBHeight=", s.myLeaderPolicy.StartDBHeight)
-				//return
 			}
 			s.handleNextLeader(h)
 		default:
@@ -1539,7 +1538,7 @@ func (s *server) handleNextLeader(height uint32) {
 			fmt.Printf("height not right. height=%d, policy=%s\n",
 				height, spew.Sdump(s.myLeaderPolicy))
 			return
-		} else if height == s.myLeaderPolicy.StartDBHeight {
+		} else if height == s.myLeaderPolicy.StartDBHeight-1 {
 			// regime change for leader-elected
 			fmt.Println("handleNextLeader: ** height equal, regime change for leader-elected.")
 			s.isLeader = true
@@ -1561,7 +1560,7 @@ func (s *server) handleNextLeader(height uint32) {
 			height, spew.Sdump(s.myLeaderPolicy))
 		return
 
-	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.NotifyDBHeight {
+	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.NotifyDBHeight-1 {
 		// determine who's the next qualified leader.
 		// simple round robin for now
 		for e := s.federateServers.Front(); e != nil; e = e.Next() {
@@ -1585,7 +1584,7 @@ func (s *server) handleNextLeader(height uint32) {
 			NotifyDBHeight: defaultNotifyDBHeight,
 			Term:           defaultLeaderTerm,
 		}
-		s.nextLeaderPolicy = policy
+		//s.nextLeaderPolicy = policy
 		fmt.Printf("handleNextLeader: before broadcast notoficiation: next leader policy=%+v\n", policy)
 
 		sig := s.privKey.Sign([]byte(s.nodeID + next.Peer.nodeID))
@@ -1595,7 +1594,7 @@ func (s *server) handleNextLeader(height uint32) {
 		s.BroadcastMessage(msg)
 		s.isLeaderElected = true
 		s.myLeaderPolicy.Notified = true
-	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term {
+	} else if height == s.myLeaderPolicy.StartDBHeight+s.myLeaderPolicy.Term-1 {
 		//regime change for current leader
 		//need to check if the next leader elected is still alive ???
 		fmt.Println("handleNextLeader: ** height equal, regime change for CURRENT LEADER.")

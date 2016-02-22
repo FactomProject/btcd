@@ -2373,8 +2373,6 @@ func (p *peer) handleNextLeaderMsg(msg *wire.MsgNextLeader) {
 			StartDBHeight:  msg.StartDBHeight,
 			NotifyDBHeight: defaultNotifyDBHeight,
 			Term:           defaultLeaderTerm,
-			//Notified:       true,
-			//Confirmed:      true,
 		}
 		p.server.myLeaderPolicy = policy
 		p.server.isLeaderElected = true
@@ -2397,9 +2395,8 @@ func (p *peer) handleNextLeaderRespMsg(msg *wire.MsgNextLeaderResp) {
 	if p.server.nodeID != msg.CurrLeaderID {
 		fmt.Printf("handleNextLeaderRespMsg: leader verify FAILED: my leader is %s, but msg.leader is %s\n",
 			p.server.nodeID, msg.CurrLeaderID)
-		//return
+		return
 	} else {
-		//if p.server.nodeID == msg.NextLeaderID {
 		fmt.Printf("handleNextLeaderRespMsg: next leader CONFIRMED: %s. startingHeight=%d\n", msg.NextLeaderID, msg.StartDBHeight)
 		p.server.myLeaderPolicy.Confirmed = true
 		p.server.isLeaderElected = false
