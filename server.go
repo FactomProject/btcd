@@ -1414,6 +1414,7 @@ func newServer(listenAddrs []string, chainParams *Params) (*server, error) {
 	} else {
 		blockSyncing = true
 	}
+	fmt.Println("newServer: blockSyncing=", blockSyncing)
 
 	return &s, nil
 }
@@ -1469,18 +1470,18 @@ func (s *server) GetNodeID() string {
 }
 
 func (s *server) initServerKeys() {
-	if s.nodeType == common.SERVER_NODE {
-		serverPrivKey, err := common.NewPrivateKeyFromHex(factomConfig.App.ServerPrivKey)
-		if err != nil {
-			panic("Cannot parse Server Private Key from configuration file: " + err.Error())
-		}
-		s.privKey = serverPrivKey
-		//s.pubKey = serverPrivKey.Pub
-		//} else {
-		// This pubkey should always come from serverPrivKey or ProtocolVersion
-		// communicate through MsgVersion ???
-		//p.pubKey = common.PubKeyFromString(common.SERVER_PUB_KEY)
+	//if s.nodeType == common.SERVER_NODE {
+	serverPrivKey, err := common.NewPrivateKeyFromHex(factomConfig.App.ServerPrivKey)
+	if err != nil {
+		panic("Cannot parse Server Private Key from configuration file: " + err.Error())
 	}
+	s.privKey = serverPrivKey
+	//s.pubKey = serverPrivKey.Pub
+	//} else {
+	// This pubkey should always come from serverPrivKey or ProtocolVersion
+	// communicate through MsgVersion ???
+	//p.pubKey = common.PubKeyFromString(common.SERVER_PUB_KEY)
+	//}
 }
 
 func (s *server) FederateServerCount() int {

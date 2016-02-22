@@ -735,5 +735,5 @@ func (b *blockManager) isSyncCandidateFactom(p *peer) bool {
 	if common.SERVER_NODE == factomConfig.App.NodeMode {
 		return true
 	}
-	return false
+	return true
 }

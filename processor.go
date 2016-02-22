@@ -157,8 +157,8 @@ func StartProcessor() {
 	fmt.Println("StartProcessor: blockSyncing=", blockSyncing)
 	if dchain.NextDBHeight == 0 && localServer.IsLeader() { //nodeMode == common.SERVER_NODE && !blockSyncing {
 		buildGenesisBlocks()
+		procLog.Debug("after creating genesis block: dchain.NextDBHeight=", dchain.NextDBHeight)
 	}
-	procLog.Debug("after creating genesis block: dchain.NextDBHeight=", dchain.NextDBHeight)
 
 	// Initialize timer for the open dblock before processing messages
 	//if nodeMode == common.SERVER_NODE && !blockSyncing {
@@ -568,7 +568,7 @@ func processDirBlockSig() error {
 	totalServerNum := localServer.FederateServerCount()
 	fmt.Printf("processDirBlockSig(): By EOM_1, there're %d dirblock signatures arrived out of %d federate servers.\n",
 		len(dbsigs), totalServerNum)
-	fmt.Println("processDirBlockSig(): DirBlockSigPool: ", spew.Sdump(dbsigs))
+	//fmt.Println("processDirBlockSig(): DirBlockSigPool: ", spew.Sdump(dbsigs))
 
 	dgsMap := make(map[string][]*wire.MsgDirBlockSig)
 	for _, v := range dbsigs {
@@ -583,7 +583,7 @@ func processDirBlockSig() error {
 		}
 		key := v.DirBlockHash.String()
 		val := dgsMap[key]
-		fmt.Printf("key0=%s, dir block sig=%s\n", key, spew.Sdump(val))
+		//fmt.Printf("key0=%s, dir block sig=%s\n", key, spew.Sdump(val))
 		if val == nil {
 			//fmt.Println("sig is nil.")
 			val = make([]*wire.MsgDirBlockSig, 0, 32)
@@ -593,13 +593,13 @@ func processDirBlockSig() error {
 			val = append(val, v)
 			dgsMap[key] = val
 		}
-		fmt.Printf("key=%s, dir block sig=%s\n", key, spew.Sdump(dgsMap[key]))
+		//fmt.Printf("key=%s, dir block sig=%s\n", key, spew.Sdump(dgsMap[key]))
 	}
 
 	var winner *wire.MsgDirBlockSig
-	for k, v := range dgsMap {
+	for _, v := range dgsMap {
 		n := float32(len(v)) / float32(totalServerNum)
-		fmt.Printf("key=%s, len=%d, n=%v\n", k, len(v), n)
+		//fmt.Printf("key=%s, len=%d, n=%v\n", k, len(v), n)
 		if n > float32(0.5) {
 			winner = v[0]
 			break
