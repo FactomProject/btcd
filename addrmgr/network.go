@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 var (

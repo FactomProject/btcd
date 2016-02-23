@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"fmt"
@@ -15,6 +15,7 @@ import (
 	"github.com/FactomProject/FactomCode/common"
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 var (
@@ -69,24 +70,6 @@ func btcdMain(serverChan chan<- *server) error {
 		defer pprof.StopCPUProfile()
 	}
 
-	/*
-			// Load the block database.
-			db, err := loadBlockDB()
-			if err != nil {
-				btcdLog.Errorf("%v", err)
-				return err
-			}
-			defer db.Close()
-
-			// a(nother) genesis hash check
-			gensha, err := db.FetchBlockShaByHeight(0)
-
-		// Will be taken out once https://github.com/FactomProject/WorkItems/issues/325 is implemented.
-		if !chaincfg.MainNetParams.GenesisHash.IsEqual(gensha) {
-			panic(errors.New(fmt.Sprintf("Factoid genesis block hash ERROR, after loadBlockDB")))
-		}
-	*/
-
 	// Ensure the database is sync'd and closed on Ctrl+C.
 	addInterruptHandler(func() {
 		btcdLog.Infof("Gracefully shutting down the database...")
@@ -136,9 +119,10 @@ func btcdMain(serverChan chan<- *server) error {
 	return nil
 }
 
-func StartBtcd(ldb database.Db) {
+func StartBtcd(ldb database.Db, inQ, outQ chan wire.FtmInternalMsg) {
 	db = ldb
-	//factomConfig = fcfg
+	inMsgQueue = inQ
+	outMsgQueue = outQ
 	if common.SERVER_NODE != factomConfig.App.NodeMode {
 		ClientOnly = true
 	}

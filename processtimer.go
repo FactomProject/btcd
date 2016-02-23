@@ -2,13 +2,13 @@
 // Use of this source code is governed by the MIT
 // license that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 // BlockTimer is set to sent End-Of-Minute messages to processor

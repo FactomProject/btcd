@@ -2,7 +2,7 @@
 // Use of this source code is governed by the MIT license
 // that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"github.com/FactomProject/FactomCode/common"
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 	"github.com/davecgh/go-spew/spew"
 )
 

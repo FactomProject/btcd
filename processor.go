@@ -10,7 +10,7 @@
 // For details, please refer to:
 // https://github.com/FactomProject/FactomDocs/blob/master/FactomLedgerbyConsensus.pdf
 
-package btcd
+package server
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ import (
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/FactomCode/util"
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 	fct "github.com/FactomProject/factoid"
 	"github.com/FactomProject/factoid/block"
 	"github.com/davecgh/go-spew/spew"
@@ -41,8 +41,8 @@ var (
 	localServer  *server
 	db           database.Db // database
 	factomConfig *util.FactomdConfig
-	inMsgQueue   = make(chan wire.FtmInternalMsg, 100) //incoming message queue for factom application messages
-	outMsgQueue  = make(chan wire.FtmInternalMsg, 100) //outgoing message queue for factom application messages
+	inMsgQueue   chan wire.FtmInternalMsg
+	outMsgQueue  chan wire.FtmInternalMsg
 
 	dchain   *common.DChain     //Directory Block Chain
 	ecchain  *common.ECChain    //Entry Credit Chain
@@ -148,7 +148,6 @@ func InitProcessor(ldb database.Db) {
 			dchain.IsValidated = false
 		}
 	}
-
 }
 
 // StartProcessor is started from factomd

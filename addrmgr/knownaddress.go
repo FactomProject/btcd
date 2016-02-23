@@ -7,7 +7,7 @@ package addrmgr
 import (
 	"time"
 
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 // KnownAddress tracks information about a known network address that is used

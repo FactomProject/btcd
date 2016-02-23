@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"container/list"
@@ -19,9 +19,9 @@ import (
 
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/database"
+	"github.com/FactomProject/FactomCode/server/addrmgr"
 	"github.com/FactomProject/FactomCode/util"
-	"github.com/FactomProject/btcd/addrmgr"
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 	"github.com/FactomProject/go-socks/socks"
 	"github.com/davecgh/go-spew/spew"
 )

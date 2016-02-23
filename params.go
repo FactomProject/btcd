@@ -2,9 +2,9 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package btcd
+package server
 
-import "github.com/FactomProject/btcd/wire"
+import "github.com/FactomProject/FactomCode/wire"
 
 // activeNetParams is a pointer to the parameters specific to the
 // currently active bitcoin network.

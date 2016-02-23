@@ -2,7 +2,7 @@
 // Use of this source code is governed by the MIT license
 // that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"errors"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/consensus"
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 // ftmMemPool is used as a source of factom transactions

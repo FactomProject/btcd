@@ -2,11 +2,11 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"github.com/FactomProject/FactomCode/common"
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 // BlockLocator is used to help locate a specific block.  The algorithm for

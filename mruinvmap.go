@@ -2,13 +2,13 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package btcd
+package server
 
 import (
 	"container/list"
 	"fmt"
 
-	"github.com/FactomProject/btcd/wire"
+	"github.com/FactomProject/FactomCode/wire"
 )
 
 // MruInventoryMap provides a map that is limited to a maximum number of items
