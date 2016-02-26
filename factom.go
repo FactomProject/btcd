@@ -14,7 +14,6 @@ import (
 	//	"github.com/FactomProject/btcd/chaincfg"
 	//	"github.com/FactomProject/btcutil"
 
-	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/btcd/wire"
 )
@@ -143,24 +142,24 @@ func Start_btcd(
 	factomdPass = pass
 
 	ClientOnly = clientMode
-
-	if ClientOnly {
-		cp.CP.AddUpdate(
-			"FactomMode", // tag
-			"system",     // Category
-			"Factom Mode: Full Node (Client)", // Title
-			"", // Message
-			0)
-		fmt.Println("\n\n>>>>>>>>>>>>>>>>>  CLIENT MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
-	} else {
-		cp.CP.AddUpdate(
-			"FactomMode",                    // tag
-			"system",                        // Category
-			"Factom Mode: Federated Server", // Title
-			"", // Message
-			0)
-		fmt.Println("\n\n>>>>>>>>>>>>>>>>>  SERVER MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
-	}
+	/*
+		if ClientOnly {
+			cp.CP.AddUpdate(
+				"FactomMode", // tag
+				"system",     // Category
+				"Factom Mode: Full Node (Client)", // Title
+				"", // Message
+				0)
+			fmt.Println("\n\n>>>>>>>>>>>>>>>>>  CLIENT MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
+		} else {
+			cp.CP.AddUpdate(
+				"FactomMode",                    // tag
+				"system",                        // Category
+				"Factom Mode: Federated Server", // Title
+				"", // Message
+				0)
+			fmt.Println("\n\n>>>>>>>>>>>>>>>>>  SERVER MODE <<<<<<<<<<<<<<<<<<<<<<<\n\n")
+		}*/
 
 	db = ldb
 
