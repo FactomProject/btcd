@@ -14,7 +14,7 @@ import (
 	"github.com/FactomProject/btcd/btcjson"
 	"github.com/FactomProject/btcd/btcjson/btcws"
 	flags "github.com/FactomProject/go-flags"
-	"github.com/davecgh/go-spew/spew"
+	"github.com/FactomProject/go-spew/spew"
 )
 
 // conversionHandler is a handler that is used to convert parameters from the

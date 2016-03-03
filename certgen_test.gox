@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/FactomProject/btcutil"
-	//"github.com/davecgh/go-spew/spew"
+	//"github.com/FactomProject/go-spew/spew"
 )
 
 // TestNewTLSCertPair ensures the NewTLSCertPair function works as expected.

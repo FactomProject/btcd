@@ -34,8 +34,7 @@ import (
 	//	"github.com/FactomProject/btcd/btcjson/btcws"
 	"github.com/FactomProject/fastsha256"
 	"github.com/FactomProject/websocket"
-
-	//	"github.com/davecgh/go-spew/spew"
+	//	"github.com/FactomProject/go-spew/spew"
 )
 
 const (

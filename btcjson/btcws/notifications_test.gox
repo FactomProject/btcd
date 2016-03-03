@@ -10,7 +10,7 @@ import (
 
 	"github.com/FactomProject/btcd/btcjson"
 	"github.com/FactomProject/btcd/btcjson/btcws"
-	"github.com/davecgh/go-spew/spew"
+	"github.com/FactomProject/go-spew/spew"
 )
 
 var ntfntests = []struct {
