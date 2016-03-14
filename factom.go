@@ -69,7 +69,7 @@ func factomForkInit(s *server) {
 				if p != nil {
 					fmt.Println("start re-syncup: ")
 					locator := DirBlockLocatorFromHash(msg.StartHash)
-					p.PushGetDirBlocksMsg(locator, msg.StopHash) //&zeroHash)
+					p.PushGetDirBlocksMsg(locator, &zeroHash)
 				}
 				fmt.Println("sync peer is nil, no syncup renewed.")
 
