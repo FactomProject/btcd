@@ -26,7 +26,6 @@ import (
 	"github.com/FactomProject/btcd/chaincfg"
 	//	"github.com/FactomProject/btcd/database"
 	"github.com/FactomProject/btcd/wire"
-
 	//	"github.com/FactomProject/btcutil"
 )
 

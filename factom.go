@@ -17,6 +17,7 @@ import (
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/btcd/wire"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var _ = fmt.Printf
@@ -61,14 +62,20 @@ func factomForkInit(s *server) {
 					}
 				}
 
+			case *wire.MsgInt_ReSyncup:
+				msg, _ := msg.(*wire.MsgInt_ReSyncup)
+				fmt.Println("MsgInt_ReSyncup: ", spew.Sdump(msg))
+				p := local_Server.SyncPeer()
+				if p != nil {
+					fmt.Println("start re-syncup: ")
+					locator := DirBlockLocatorFromHash(msg.StartHash)
+					p.PushGetDirBlocksMsg(locator, &zeroHash)
+				}
+				fmt.Println("sync peer is nil, no syncup renewed.")
+
 			default:
 				panic(fmt.Sprintf("bad outMsgQueue message received: %v", msg))
 			}
-			/*      peerInfoResults := server.PeerInfo()
-			        for peerInfo := range peerInfoResults{
-			          fmt.Printf("PeerInfo:%+v", peerInfo)
-
-			        }*/
 		}
 	}()
 
@@ -88,13 +95,6 @@ func factomForkInit(s *server) {
 
 				case wire.END_MINUTE_10:
 					panic(errors.New("unhandled END_MINUTE_10"))
-
-					/*
-						// block building, return the hash of the new one via doneFB (via hook)
-						generateFactoidBlock(msgEom.NextDBlockHeight)
-						fmt.Println("***********************")
-						fmt.Println("***********************")
-					*/
 
 				default:
 					panic(errors.New("unhandled EOM type"))

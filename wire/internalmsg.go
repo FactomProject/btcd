@@ -8,6 +8,7 @@ const (
 	CmdInt_FactoidBlock = "int_fx_block"
 	CmdInt_EOM          = "int_eom"
 	CmdInt_DirBlock     = "int_dir_block"
+	CmdInt_ReSyncup     = "int_re_syncup"
 )
 
 // Block status code
@@ -58,4 +59,15 @@ type MsgInt_DirBlock struct {
 // Dir block available: internal message for time commnunications between Goroutines
 func (msg *MsgInt_DirBlock) Command() string {
 	return CmdInt_DirBlock
+}
+
+// Dir block message for internal communication
+type MsgInt_ReSyncup struct {
+	StartHash *ShaHash
+	StopHash *ShaHash
+}
+
+// Dir block available: internal message for time commnunications between Goroutines
+func (msg *MsgInt_ReSyncup) Command() string {
+	return CmdInt_ReSyncup
 }
