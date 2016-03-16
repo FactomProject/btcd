@@ -64,14 +64,14 @@ func factomForkInit(s *server) {
 
 			case *wire.MsgInt_ReSyncup:
 				msg, _ := msg.(*wire.MsgInt_ReSyncup)
-				fmt.Println("MsgInt_ReSyncup: ", spew.Sdump(msg))
+				//fmt.Println("MsgInt_ReSyncup: ", spew.Sdump(msg))
 				p := local_Server.SyncPeer()
 				if p != nil {
-					fmt.Println("start re-syncup: ")
+					//fmt.Println("start re-syncup: ")
 					locator := DirBlockLocatorFromHash(msg.StartHash)
 					p.PushGetDirBlocksMsg(locator, &zeroHash)
 				}
-				fmt.Println("sync peer is nil, no syncup renewed.")
+				//fmt.Println("sync peer is nil, no syncup renewed.")
 
 			default:
 				panic(fmt.Sprintf("bad outMsgQueue message received: %v", msg))
