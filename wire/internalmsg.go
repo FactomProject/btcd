@@ -64,7 +64,7 @@ func (msg *MsgInt_DirBlock) Command() string {
 // Dir block message for internal communication
 type MsgInt_ReSyncup struct {
 	StartHash *ShaHash
-	StopHash *ShaHash
+	StopHash  *ShaHash
 }
 
 // Dir block available: internal message for time commnunications between Goroutines
