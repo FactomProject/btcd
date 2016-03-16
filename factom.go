@@ -11,13 +11,10 @@ import (
 	"fmt"
 	"os"
 
-	//	"github.com/FactomProject/btcd/chaincfg"
-	//	"github.com/FactomProject/btcutil"
-
 	cp "github.com/FactomProject/FactomCode/controlpanel"
 	"github.com/FactomProject/FactomCode/database"
 	"github.com/FactomProject/btcd/wire"
-	"github.com/davecgh/go-spew/spew"
+	//"github.com/davecgh/go-spew/spew"
 )
 
 var _ = fmt.Printf
@@ -64,14 +61,14 @@ func factomForkInit(s *server) {
 
 			case *wire.MsgInt_ReSyncup:
 				msg, _ := msg.(*wire.MsgInt_ReSyncup)
-				fmt.Println("MsgInt_ReSyncup: ", spew.Sdump(msg))
+				//fmt.Println("MsgInt_ReSyncup: ", spew.Sdump(msg))
 				p := local_Server.SyncPeer()
 				if p != nil {
 					fmt.Println("start re-syncup: ")
 					locator := DirBlockLocatorFromHash(msg.StartHash)
 					p.PushGetDirBlocksMsg(locator, &zeroHash)
 				}
-				fmt.Println("sync peer is nil, no syncup renewed.")
+				//fmt.Println("sync peer is nil, no syncup renewed.")
 
 			default:
 				panic(fmt.Sprintf("bad outMsgQueue message received: %v", msg))
@@ -82,7 +79,7 @@ func factomForkInit(s *server) {
 	go func() {
 		for msg := range outCtlMsgQueue {
 
-			fmt.Printf("in range outCtlMsgQueue, msg:%+v\n", msg)
+			//fmt.Printf("in range outCtlMsgQueue, msg:%+v\n", msg)
 
 			msgEom, _ := msg.(*wire.MsgInt_EOM)
 
