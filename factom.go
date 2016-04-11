@@ -30,6 +30,8 @@ var (
 
 	inCtlMsgQueue  chan wire.FtmInternalMsg //incoming message queue for factom control messages
 	outCtlMsgQueue chan wire.FtmInternalMsg //outgoing message queue for factom control messages
+
+	resyncCount int
 )
 
 // start up Factom queue(s) managers/processors
@@ -67,7 +69,7 @@ func factomForkInit(s *server) {
 				//fmt.Println("MsgInt_ReSyncup: ", spew.Sdump(msg))
 				p := local_Server.SyncPeer()
 				if p != nil {
-					//fmt.Println("start re-syncup: ")
+					fmt.Println("re-syncup #: ", resyncCount)
 					locator := DirBlockLocatorFromHash(msg.StartHash)
 					p.PushGetDirBlocksMsg(locator, &zeroHash)
 				}
