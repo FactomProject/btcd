@@ -1660,6 +1660,10 @@ out:
 		case *wire.MsgFactoidTX:
 			p.handleFactoidMsg(msg, buf)
 
+		case *wire.MsgGetFactomData:
+			p.handleGetFactomDataMsg(msg)
+			markConnected = true
+
 		default:
 			peerLog.Debugf("Received unhandled message of type %v: Fix Me",
 				rmsg.Command())

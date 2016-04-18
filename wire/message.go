@@ -72,6 +72,8 @@ const (
 
 	CmdAcknowledgement = "confirmation"
 	CmdMHashReveal     = "mhashreveal"
+
+	CmdGetFactomData    = "getfctdata"
 )
 
 // MaxAppMsgPayload is the maximum bytes a factom app message can be in bytes.
@@ -206,6 +208,9 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdFactoidTX:
 		msg = &MsgFactoidTX{}
+
+	case CmdGetFactomData:
+		msg = &MsgGetFactomData{}
 
 	default:
 		return nil, fmt.Errorf("unhandled command [%s]", command)

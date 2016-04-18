@@ -6,6 +6,7 @@ package btcd
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/FactomCode/database"
@@ -415,6 +416,122 @@ func (p *peer) handleGetDirBlocksMsg(msg *wire.MsgGetDirBlocks) {
 			p.continueHash = &continueHash
 		}
 		p.QueueMessage(invMsg, nil)
+	}
+}
+
+// handleGetFactomDataMsg is invoked when a peer request factom data based on height.
+// requested data can be: ablock, dblock, fblock, ecblok, eblock, and entries.
+// since entries have no height, so all entries in one eblock of that height will be delivered.
+func (p *peer) handleGetFactomDataMsg(msg *wire.MsgGetFactomData) {
+	numAdded := 0
+	notFound := wire.NewMsgNotFound()
+
+	// We wait on the this wait channel periodically to prevent queueing
+	// far more data than we can send in a reasonable time, wasting memory.
+	// The waiting occurs after the database fetch for the next one to
+	// provide a little pipelining.
+	// var waitChan chan struct{}
+	doneChan := make(chan struct{}, 1)
+
+	for i, iv := range msg.InvList {
+		var c chan struct{}
+		// If this will be the last message we send.
+		if i == len(msg.InvList)-1 && len(notFound.InvList) == 0 {
+			c = doneChan
+		} else if (i+1)%3 == 0 {
+			// Buffered so as to not make the send goroutine block.
+			c = make(chan struct{}, 1)
+		}
+		var err error
+		switch iv.Type {
+		case wire.InvTypeFactomDirBlock:
+			msg := wire.NewMsgDirBlock()
+			blk, err0 := db.FetchDBlockByMR(&iv.Hash)
+			//blk, err0 := db.FetchDBlockByHeight(iv.Height)
+			msg.DBlk = blk
+			p.QueueMessage(msg, c) 
+			err = err0
+			//err = p.pushDirBlockMsg(&iv.Hash, c, waitChan)
+
+		case wire.InvTypeFactomAdminBlock:
+			//blk, err0 := db.FetchABlockByHeight(iv.Height)
+			blk, err0 := db.FetchABlockByHash(&iv.Hash)
+			msg := wire.NewMsgABlock()
+			msg.ABlk = blk
+			p.QueueMessage(msg, c) 
+			err = err0
+			//err = p.pushABlockMsg(&iv.Hash, c, waitChan)
+
+		case wire.InvTypeFactomEntryCreditBlock:
+			//blk, err0 := db.FetchECBlockByHeight(iv.Height)
+			blk, err0 := db.FetchECBlockByHash(&iv.Hash)
+			msg := wire.NewMsgECBlock()
+			msg.ECBlock = blk
+			p.QueueMessage(msg, c) 
+			err = err0
+			//err = p.pushECBlockMsg(dbEntry.KeyMR, c, waitChan)
+
+		case wire.InvTypeFactomFBlock:
+			//blk, err0 := db.FetchFBlockByHeight(iv.Height)
+			blk, err0 := db.FetchFBlockByHash(&iv.Hash)
+			msg := wire.NewMsgFBlock()
+			msg.SC = blk
+			p.QueueMessage(msg, c) 
+			err = err0
+			//err = p.pushFBlockMsg(dbEntry.KeyMR, c, waitChan)
+
+		case wire.InvTypeFactomEntryBlock:
+			blk, err0 := db.FetchEBlockByMR(&iv.Hash)
+			// iv.Height is the EBSequence
+			//blk, err0 := db.FetchEBlockByHeight(iv.Height)
+			msg := wire.NewMsgEBlock()
+			msg.EBlk = blk
+			p.QueueMessage(msg, c) 
+			err = err0
+			//err = p.pushEBlockMsg(dbEntry.KeyMR, c, waitChan)
+
+		case wire.InvTypeFactomEntry:
+			entry, err0 := db.FetchEntryByHash(&iv.Hash)
+			msg := wire.NewMsgEntry()
+			msg.Entry = entry
+			p.QueueMessage(msg, c) 
+			err = err0
+			/*
+			// iv.Height is the EBSequence
+			//blk, err0 := db.FetchEBlockByHeight(iv.Height)
+			for _, ebEntry := range blk.Body.EBEntries {
+				//Skip the minute markers
+				if ebEntry.IsMinuteMarker() {
+					continue
+				}
+				entry, err0 := db.FetchEntryByHash(ebEntry)
+				msg := wire.NewMsgEntry()
+				msg.Entry = entry
+				p.QueueMessage(msg, c) 
+			}*/
+
+		default:
+			peerLog.Warnf("Unknown type in inventory request %d",
+				iv.Type)
+			continue
+		}
+		if err != nil {
+			fmt.Println("handleGetFactomDataMsg: err=", err.Error())
+		}
+		numAdded++
+		// waitChan = c
+	}
+	// if len(notFound.InvList) != 0 {
+		// p.QueueMessage(notFound, doneChan)
+	// }
+
+	// Wait for messages to be sent. We can send quite a lot of data at this
+	// point and this will keep the peer busy for a decent amount of time.
+	// We don't process anything else by them in this time so that we
+	// have an idea of when we should hear back from them - else the idle
+	// timeout could fire when we were only half done sending the blocks.
+	if numAdded > 0 {
+		<-doneChan
 	}
 }
 

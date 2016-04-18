@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 
+	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/fastsha256"
 )
 
@@ -104,7 +105,16 @@ func readElement(r io.Reader, element interface{}) error {
 			return err
 		}
 		return nil
-
+		
+	case *common.Hash:
+		var data [32]byte
+		_, err := io.ReadFull(r, data[:])
+		if err != nil {
+			return err
+		}
+		*e = common.NewHashFromByte(data)
+		return nil
+		
 	case *ServiceFlag:
 		b := scratch[0:8]
 		_, err := io.ReadFull(r, b)
@@ -255,7 +265,14 @@ func writeElement(w io.Writer, element interface{}) error {
 			return err
 		}
 		return nil
-
+		
+	case *common.Hash:
+		_, err := w.Write(e.Bytes())
+		if err != nil {
+			return err
+		}
+		return nil
+		
 	case ServiceFlag:
 		b := scratch[0:8]
 		binary.BigEndian.PutUint64(b, uint64(e))
