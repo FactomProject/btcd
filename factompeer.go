@@ -447,55 +447,79 @@ func (p *peer) handleGetFactomDataMsg(msg *wire.MsgGetFactomData) {
 		case wire.InvTypeFactomDirBlock:
 			msg := wire.NewMsgDirBlock()
 			blk, err0 := db.FetchDBlockByMR(&iv.Hash)
-			//blk, err0 := db.FetchDBlockByHeight(iv.Height)
-			msg.DBlk = blk
-			p.QueueMessage(msg, c) 
-			err = err0
-			//err = p.pushDirBlockMsg(&iv.Hash, c, waitChan)
+			if err0 != nil {
+				fmt.Println("FetchDBlockByMR err: ", err0.Error())
+				err = err0
+			} else {
+				//blk, err0 := db.FetchDBlockByHeight(iv.Height)
+				msg.DBlk = blk
+				p.QueueMessage(msg, c) 			
+				//err = p.pushDirBlockMsg(&iv.Hash, c, waitChan)
+			}
 
 		case wire.InvTypeFactomAdminBlock:
 			//blk, err0 := db.FetchABlockByHeight(iv.Height)
 			blk, err0 := db.FetchABlockByHash(&iv.Hash)
-			msg := wire.NewMsgABlock()
-			msg.ABlk = blk
-			p.QueueMessage(msg, c) 
-			err = err0
-			//err = p.pushABlockMsg(&iv.Hash, c, waitChan)
-
+			if err0 != nil {
+				fmt.Println("FetchABlockByHash err: ", err0.Error())
+				err = err0
+			} else {
+				msg := wire.NewMsgABlock()
+				msg.ABlk = blk
+				p.QueueMessage(msg, c) 
+				//err = p.pushABlockMsg(&iv.Hash, c, waitChan)
+			}
+			
 		case wire.InvTypeFactomEntryCreditBlock:
 			//blk, err0 := db.FetchECBlockByHeight(iv.Height)
 			blk, err0 := db.FetchECBlockByHash(&iv.Hash)
-			msg := wire.NewMsgECBlock()
-			msg.ECBlock = blk
-			p.QueueMessage(msg, c) 
-			err = err0
-			//err = p.pushECBlockMsg(dbEntry.KeyMR, c, waitChan)
-
+			if err0 != nil {
+				fmt.Println("FetchECBlockByHash err: ", err0.Error())
+				err = err0
+			} else {
+				msg := wire.NewMsgECBlock()
+				msg.ECBlock = blk
+				p.QueueMessage(msg, c) 
+				//err = p.pushECBlockMsg(dbEntry.KeyMR, c, waitChan)
+			}
+			
 		case wire.InvTypeFactomFBlock:
 			//blk, err0 := db.FetchFBlockByHeight(iv.Height)
 			blk, err0 := db.FetchFBlockByHash(&iv.Hash)
-			msg := wire.NewMsgFBlock()
-			msg.SC = blk
-			p.QueueMessage(msg, c) 
-			err = err0
-			//err = p.pushFBlockMsg(dbEntry.KeyMR, c, waitChan)
-
+			if err0 != nil {
+				fmt.Println("FetchFBlockByHash err: ", err0.Error())
+				err = err0
+			} else {
+				msg := wire.NewMsgFBlock()
+				msg.SC = blk
+				p.QueueMessage(msg, c) 
+				//err = p.pushFBlockMsg(dbEntry.KeyMR, c, waitChan)
+			}
+			
 		case wire.InvTypeFactomEntryBlock:
 			blk, err0 := db.FetchEBlockByMR(&iv.Hash)
-			// iv.Height is the EBSequence
-			//blk, err0 := db.FetchEBlockByHeight(iv.Height)
-			msg := wire.NewMsgEBlock()
-			msg.EBlk = blk
-			p.QueueMessage(msg, c) 
-			err = err0
-			//err = p.pushEBlockMsg(dbEntry.KeyMR, c, waitChan)
-
+			if err0 != nil {
+				fmt.Println("FetchEBlockByMR err: ", err0.Error())
+				err = err0
+			} else {
+				// iv.Height is the EBSequence
+				//blk, err0 := db.FetchEBlockByHeight(iv.Height)
+				msg := wire.NewMsgEBlock()
+				msg.EBlk = blk
+				p.QueueMessage(msg, c) 
+				//err = p.pushEBlockMsg(dbEntry.KeyMR, c, waitChan)
+			}
+			
 		case wire.InvTypeFactomEntry:
 			entry, err0 := db.FetchEntryByHash(&iv.Hash)
-			msg := wire.NewMsgEntry()
-			msg.Entry = entry
-			p.QueueMessage(msg, c) 
-			err = err0
+			if err0 != nil {
+				fmt.Println("FetchEntryByHash err: ", err0.Error())
+				err = err0
+			} else {
+				msg := wire.NewMsgEntry()
+				msg.Entry = entry
+				p.QueueMessage(msg, c) 
+			}
 			/*
 			// iv.Height is the EBSequence
 			//blk, err0 := db.FetchEBlockByHeight(iv.Height)
@@ -517,13 +541,24 @@ func (p *peer) handleGetFactomDataMsg(msg *wire.MsgGetFactomData) {
 		}
 		if err != nil {
 			fmt.Println("handleGetFactomDataMsg: err=", err.Error())
+			ivv := wire.NewInvVect(iv.Type, wire.FactomHashToShaHash(&iv.Hash))
+			notFound.AddInvVect(ivv)
+
+			// When there is a failure fetching the final entry
+			// and the done channel was sent in due to there
+			// being no outstanding not found inventory, consume
+			// it here because there is now not found inventory
+			// that will use the channel momentarily.
+			if i == len(msg.InvList)-1 && c != nil {
+				<-c
+			}
 		}
 		numAdded++
 		// waitChan = c
 	}
-	// if len(notFound.InvList) != 0 {
-		// p.QueueMessage(notFound, doneChan)
-	// }
+	if len(notFound.InvList) != 0 {
+		p.QueueMessage(notFound, doneChan)
+	}
 
 	// Wait for messages to be sent. We can send quite a lot of data at this
 	// point and this will keep the peer busy for a decent amount of time.
