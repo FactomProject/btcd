@@ -664,6 +664,23 @@ func (p *peer) PushGetDirBlocksMsg(locator blockchain.BlockLocator, stopHash *wi
 			return err
 		}
 	}
+	
+	//?? To be removed: ---------------------------
+	height := db.FetchSyncupBlockHeightCache()
+	_, myDBHeight, _ := db.FetchBlockHeightCache()
+
+	adj := height - myDBHeight
+	if adj <= 1000 {
+		adj = 0
+	} else if adj > 10000 {
+		adj = 10000
+	}
+
+	sleeptime := 10*adj 	// in milliseconds
+	fmt.Println("factompeer sleeping for: ", sleeptime, " milliseconds")	
+	time.Sleep(time.Duration(sleeptime * 1000000)) // Nanoseconds for duration	
+	// ------------------------------
+	
 	p.QueueMessage(msg, nil)
 
 	// Update the previous getblocks request information for filtering
