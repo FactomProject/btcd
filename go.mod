@@ -3,7 +3,7 @@ module github.com/FactomProject/btcd
 go 1.13
 
 require (
-	github.com/FactomProject/FactomCode v0.3.5
+	github.com/FactomProject/FactomCode v0.3.6-0.20171228170625-d7e03150a9d5
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btclog v0.0.0-20150207045733-3585005305be
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect

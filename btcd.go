@@ -5,15 +5,11 @@
 package btcd
 
 import (
-	//	"errors"
-	//	"fmt"
-	"github.com/FactomProject/FactomCode/process"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime/pprof"
-	"time"
 )
 
 var (
@@ -124,10 +120,12 @@ func btcdMain(serverChan chan<- *server) error {
 	addInterruptHandler(func() {
 
 		btcdLog.Infof("Gracefully shutting down the server...")
-		process.SafeStop = true
-		for i := 0; i < 3000 && !process.SafeStopDone; i++ { //wait for 3000 milliseconds (3 seconds) for the database to shut down
-			time.Sleep(time.Duration(1) * time.Millisecond)
-		}
+		/*
+			process.SafeStop = true
+			for i := 0; i < 3000 && !process.SafeStopDone; i++ { //wait for 3000 milliseconds (3 seconds) for the database to shut down
+				time.Sleep(time.Duration(1) * time.Millisecond)
+			}
+		*/
 		server.Stop()
 		server.WaitForShutdown()
 	})
